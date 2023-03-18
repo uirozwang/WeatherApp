@@ -28,4 +28,5 @@ Weather是一款仿官方天氣APP
 4. 已設定常見天氣對應的圖標，部分天氣圖標會在取得資料後補充  
   
 PS.兩次切換到彰化市，是因為按下右邊的定位按鈕  
-![image](https://github.com/uirozwang/WeatherApp/blob/main/WeatherApp.gif)
+
+<img src="[your-gif-url-here](https://github.com/uirozwang/WeatherApp/blob/main/WeatherApp.gif)" alt="your-gif-description" style="max-width: 500px;">
