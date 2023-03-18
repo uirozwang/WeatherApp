@@ -14,7 +14,7 @@ struct County {
     var weekDomain: String
 }
 
-struct City {
+struct City: Codable {
     var countyName: String
     var cityName: String
     var count: Int?

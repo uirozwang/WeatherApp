@@ -121,7 +121,8 @@ extension SearchViewController: UISearchResultsUpdating {
         
         guard let searchString = searchController.searchBar.text else {
             return
-        }
+    }
+        
         filteredArray = []
         
         // 與搜尋字串相符的字數
@@ -143,7 +144,7 @@ extension SearchViewController: UISearchResultsUpdating {
             }
         }
         // 排除掉count=0的部分
-        for i in 0..<allCityDataArray.count {
+            for i in 0..<allCityDataArray.count {
             if let count = allCityDataArray[i].count {
                 if count > 0 {
                     filteredArray.append(allCityDataArray[i])

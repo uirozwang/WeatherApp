@@ -21,6 +21,7 @@ class TemperatureLineView: UIView {
     }
     
     override func draw(_ rect: CGRect) {
+        backgroundColor = UIColor(red: 1, green: 1, blue: 1, alpha: 0)
         let gradientLayer = CAGradientLayer()
         gradientLayer.frame = bounds
         let lowColor = UIColor(red: 98/255, green: 210/255, blue: 215/255, alpha: 1).cgColor

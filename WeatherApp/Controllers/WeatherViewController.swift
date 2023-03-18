@@ -31,13 +31,13 @@ class WeatherViewController: UIViewController {
     // default location, NCUE
     var currentLat = 24.081013
     var currentLon = 120.558316
-    var currentCounty = "彰化縣"
-    var currentCity = "彰化市"
-    let delayInSeconds: TimeInterval = 0.5
+    var currentCounty = ""
+    var currentCity = ""
+    let delayInSeconds: TimeInterval = 0.8
     let textColor = UIColor(red: 1, green: 1, blue: 1, alpha: 1)
     
     // index 0 is location, other places is set by user
-    var pinCities: [City] = [City(countyName: "彰化縣", cityName: "彰化市")]
+    var pinCities: [City] = []
     var pinCitiesThreeDaysWeatherData: [CityThreeDaysWeatherData] = []
     var pinCitiesSevenDaysWeatherData: [CitySevenDaysWeatherData] = []
     
@@ -57,7 +57,7 @@ class WeatherViewController: UIViewController {
         locationMgr.desiredAccuracy = kCLLocationAccuracyKilometer
         locationMgr.delegate = self
         startTimer()
-        getPinCitiesWeatherData()
+        checkFirstLaunch()
         configureInterface()
         
     }
@@ -79,7 +79,42 @@ class WeatherViewController: UIViewController {
         }
     }
     
+    func checkFirstLaunch() {
+        
+        let defaults = UserDefaults.standard
+        // 檢查是否第一次啟動
+        if !defaults.bool(forKey: "HasLaunchedBefore") {
+            // 第一次啟動
+            defaults.set(true, forKey: "HasLaunchedBefore")
+            
+            pinCities = [City(countyName: "新北市", cityName: "中和區")]
+            //            print("first luanch")
+            
+            do {
+                let data = try JSONEncoder().encode(pinCities)
+                UserDefaults.standard.set(data, forKey: "pinCities")
+            } catch {
+                print("Encoding error", error)
+            }
+            
+        } else {
+            //            print("not first luanch")
+            if let data = UserDefaults.standard.data(forKey: "pinCities") {
+                do {
+                    let data = try JSONDecoder().decode([City].self, from: data)
+                    self.pinCities = data
+                    getPinCitiesWeatherData()
+                } catch {
+                    print("Decoding error:", error)
+                }
+            }
+        }
+    }
+    
     func configureInterface() {
+        
+        view.backgroundColor = UIColor(red: 78/255, green: 98/255, blue: 120/255, alpha: 1)
+        
         cityLabel.textColor = textColor
         currentTemparatureLabel.textColor = textColor
         currentClimateLabel.textColor = textColor
@@ -505,7 +540,9 @@ class WeatherViewController: UIViewController {
                     }
                 }
                 if elementValues.count == 0 {
-                    print(elements[i].elementName)
+                    if let elementName = elements[i].elementName {
+                        print(elementName)
+                    }
                 }
                 switch elements[i].elementName {
                 case "PoP12h":
@@ -575,7 +612,9 @@ class WeatherViewController: UIViewController {
             locationMgr.startUpdatingLocation()
         case .denied:
             let alertController = UIAlertController(title: "定位權限已關閉", message: "如要變更權限，請至 設定 > 隱私權 > 定位服務 開啟", preferredStyle: .alert)
-            let okAction = UIAlertAction(title: "OK", style: .default)
+            let okAction = UIAlertAction(title: "OK", style: .default) { action in
+                self.getPinCitiesWeatherData()
+            }
             alertController.addAction(okAction)
             self.present(alertController, animated: true)
         default:
@@ -588,7 +627,7 @@ class WeatherViewController: UIViewController {
         let geocoder = CLGeocoder()
         let currentLocation = CLLocation(latitude: currentLat, longitude: currentLon)
         //        print(currentLocation)
-//        print(NSLocale.current)
+        //        print(NSLocale.current)
         let locale = Locale(identifier: "zh_TW")
         geocoder.reverseGeocodeLocation(currentLocation, preferredLocale: locale) { placemarks, error -> Void in
             if error != nil {
@@ -667,7 +706,7 @@ extension WeatherViewController: UICollectionViewDataSource {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "hourclimatecell", for: indexPath) as! WeatherHourClimateCollectionViewCell
         
         cell.timeLabel.textColor = textColor
-            cell.temperatureLabel.textColor = textColor
+        cell.temperatureLabel.textColor = textColor
         
         let wx = pinCitiesThreeDaysWeatherData[currentCityIndex].weatherPhenomenon[indexPath.row].elementValue[0].value
         switch wx {
@@ -748,15 +787,17 @@ extension WeatherViewController: UITableViewDelegate {
 
 extension WeatherViewController: UITableViewDataSource {
     
-    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
-        let view = tableView.tableHeaderView as! WeatherDayClimateTableViewHeaderView
-        view.titleLabel.textColor = textColor
-        return view
-    }
+    //    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+    //        let view = tableView.tableHeaderView as! WeatherDayClimateTableViewHeaderView
+    //        view.titleLabel.textColor = textColor
+    //        return view
+    //    }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
         let cell = tableView.dequeueReusableCell(withIdentifier: "dayclimatecell", for: indexPath) as! WeatherDayClimateTableViewCell
+        
+        cell.backgroundColor = UIColor(red: 1, green: 1, blue: 1, alpha: 0)
         
         cell.weekLabel.textColor = textColor
         cell.lowTemperatureLabel.textColor = textColor
@@ -780,8 +821,17 @@ extension WeatherViewController: UITableViewDataSource {
             let (min, max) = getMinAndMaxTemperature(date: day)
             let (sevenMin, sevenMax) = getSevenDayMinAndMaxTemperature()
             
-            cell.lowTemperatureLabel.text = String(min)
-            cell.highTemperatureLabel.text = String(max)
+            if min == 999 && max == -999 {
+                cell.lowTemperatureLabel.text = "N/A"
+                cell.highTemperatureLabel.text = "N/A"
+                cell.lineView.isHidden = true
+                cell.weatherImageView.isHidden = true
+            } else {
+                cell.lowTemperatureLabel.text = String(min)+"°"
+                cell.highTemperatureLabel.text = String(max)+"°"
+                cell.lineView.isHidden = false
+                cell.weatherImageView.isHidden = false
+            }
             
             let sevneMinDouble = Double(sevenMin)
             let sevneMaxDouble = Double(sevenMax)
@@ -813,6 +863,8 @@ extension WeatherViewController: CLLocationManagerDelegate {
         
         let userLocation: CLLocation = locations[0]
         print("didUpdateLocations ", userLocation)
+        reverseGeocoder()
+//        getPinCitiesWeatherData()
         
     }
     
@@ -826,6 +878,12 @@ extension WeatherViewController: CLLocationManagerDelegate {
 extension WeatherViewController: SearchViewControllerDelegate {
     func tappedSearchButton(county: String,city: String) {
         pinCities = [City(countyName: county, cityName: city)]
+        do {
+            let data = try JSONEncoder().encode(pinCities)
+            UserDefaults.standard.set(data, forKey: "pinCities")
+        } catch {
+            print("Encoding error", error)
+        }
         getPinCitiesWeatherData()
     }
 }
