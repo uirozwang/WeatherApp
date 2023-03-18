@@ -26,3 +26,5 @@ Weather是一款仿官方天氣APP
 2. 由於opendata的API會提前移除當前天氣資料，例如5點時僅能查詢到6點以後的資料，因此目前是以顯示最新一筆資料為準  
 3. 每三小時天氣的collectionView的寬度，目前無法相容其他機型  
 4. 已設定常見天氣對應的圖標，部分天氣圖標會在取得資料後補充  
+
+![image](https://github.com/uirozwang/WeatherApp/blob/main/WeatherApp.gif)
