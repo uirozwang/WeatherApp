@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C71DB55429C3C75500DEDAF6 /* TemperatureLineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71DB55329C3C75500DEDAF6 /* TemperatureLineView.swift */; };
 		C758BC3F29A7CD2400DCA733 /* CityModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C758BC3E29A7CD2400DCA733 /* CityModel.swift */; };
 		C758BC4129A7CD3D00DCA733 /* WeatherModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C758BC4029A7CD3D00DCA733 /* WeatherModel.swift */; };
 		C758BC4329A80EAF00DCA733 /* AllCityName.swift in Sources */ = {isa = PBXBuildFile; fileRef = C758BC4229A80EAF00DCA733 /* AllCityName.swift */; };
@@ -27,6 +28,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		C71DB55329C3C75500DEDAF6 /* TemperatureLineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemperatureLineView.swift; sourceTree = "<group>"; };
 		C758BC3E29A7CD2400DCA733 /* CityModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CityModel.swift; sourceTree = "<group>"; };
 		C758BC4029A7CD3D00DCA733 /* WeatherModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherModel.swift; sourceTree = "<group>"; };
 		C758BC4229A80EAF00DCA733 /* AllCityName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllCityName.swift; sourceTree = "<group>"; };
@@ -78,6 +80,7 @@
 				C7C85BB029B730CB00D32AF5 /* WeatherDayClimateTableViewCell.swift */,
 				C7C85BB229B7312000D32AF5 /* WeatherDayClimateTableViewHeaderView.swift */,
 				C7C85BB429B7352C00D32AF5 /* WeatherHourClimateCollectionViewCell.swift */,
+				C71DB55329C3C75500DEDAF6 /* TemperatureLineView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -200,6 +203,7 @@
 				C758BC4329A80EAF00DCA733 /* AllCityName.swift in Sources */,
 				C79AADEE29B59E1D009E9F57 /* SearchPinPlacesTableViewCell.swift in Sources */,
 				C7982C4429AA738A002F40D0 /* SearchViewController.swift in Sources */,
+				C71DB55429C3C75500DEDAF6 /* TemperatureLineView.swift in Sources */,
 				C7C85BB529B7352C00D32AF5 /* WeatherHourClimateCollectionViewCell.swift in Sources */,
 				C7C85BB329B7312000D32AF5 /* WeatherDayClimateTableViewHeaderView.swift in Sources */,
 				C7F8C78D29A7284B004FB879 /* WeatherViewController.swift in Sources */,

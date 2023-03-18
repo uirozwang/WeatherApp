@@ -94,7 +94,7 @@ struct OrganizedElement {
     var elementValue: [OrganizedElementValue]
 }
 
-struct CityTwoDayWeatherData {
+struct CityThreeDaysWeatherData {
     var probabilityofPrecipitation12h: [OrganizedElement]
     var weatherPhenomenon: [OrganizedElement]
     var apparentTemperature: [OrganizedElement]
@@ -106,4 +106,22 @@ struct CityTwoDayWeatherData {
     var windSpeed: [OrganizedElement]
     var windDirection: [OrganizedElement]
     var dewPointTemperature: [OrganizedElement]
+}
+
+struct CitySevenDaysWeatherData {
+    var probabilityofPrecipitation12h: [OrganizedElement]
+    var averageTemperature: [OrganizedElement]
+    var averageRelativeHumidity: [OrganizedElement]
+    var minComfortIndex: [OrganizedElement]
+    var windSpeed: [OrganizedElement]
+    var maxApparentTemperature: [OrganizedElement]
+    var weatherPhenomenon: [OrganizedElement]
+    var maxComfortIndex: [OrganizedElement]
+    var minTemperature: [OrganizedElement]
+    var ultravioletIndex: [OrganizedElement]
+    var weatherDescription: [OrganizedElement]
+    var minApparentTemperature: [OrganizedElement]
+    var maxTemperature: [OrganizedElement]
+    var windDirection: [OrganizedElement]
+    var averageDewPointTemperature: [OrganizedElement]
 }

@@ -13,7 +13,7 @@ class WeatherDayClimateTableViewCell: UITableViewCell {
     @IBOutlet var weatherImageView: UIImageView!
     @IBOutlet var lowTemperatureLabel: UILabel!
     @IBOutlet var highTemperatureLabel: UILabel!
-    @IBOutlet var lineView: UIView!
+    @IBOutlet var lineView: TemperatureLineView!
 
     override func awakeFromNib() {
         super.awakeFromNib()
@@ -25,5 +25,11 @@ class WeatherDayClimateTableViewCell: UITableViewCell {
 
         // Configure the view for the selected state
     }
+    
+    override func prepareForReuse() {
+            super.prepareForReuse()
+            // 移除 lineView 上的所有 sublayer，避免繪圖異常
+            lineView.layer.sublayers?.forEach { $0.removeFromSuperlayer() }
+        }
 
 }

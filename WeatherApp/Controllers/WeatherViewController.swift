@@ -22,7 +22,8 @@ class WeatherViewController: UIViewController {
     
     let countiesDomain = AllCountyDomain.shared.allCityDomain
     
-    var weatherResultData: [WeatherResult] = []
+    var weatherThreeDaysResultData: [WeatherResult] = []
+    var weatherSevenDaysResultData: [WeatherResult] = []
     
     // 當前顯示的城市，0代表GPS定位
     var currentCityIndex: Int = 0
@@ -32,11 +33,13 @@ class WeatherViewController: UIViewController {
     var currentLon = 120.558316
     var currentCounty = "彰化縣"
     var currentCity = "彰化市"
+    let delayInSeconds: TimeInterval = 0.5
+    let textColor = UIColor(red: 1, green: 1, blue: 1, alpha: 1)
     
     // index 0 is location, other places is set by user
-    var pinCities: [City] = [City(countyName: "彰化縣", cityName: "彰化市"),
-                             City(countyName: "彰化縣", cityName: "和美鎮")]
-    var pinCitiesWeatherData: [CityTwoDayWeatherData] = []
+    var pinCities: [City] = [City(countyName: "彰化縣", cityName: "彰化市")]
+    var pinCitiesThreeDaysWeatherData: [CityThreeDaysWeatherData] = []
+    var pinCitiesSevenDaysWeatherData: [CitySevenDaysWeatherData] = []
     
     var locationMgr = CLLocationManager()
     
@@ -55,6 +58,7 @@ class WeatherViewController: UIViewController {
         locationMgr.delegate = self
         startTimer()
         getPinCitiesWeatherData()
+        configureInterface()
         
     }
     
@@ -73,6 +77,20 @@ class WeatherViewController: UIViewController {
             let vc = segue.destination as? SearchViewController
             vc?.delegate = self
         }
+    }
+    
+    func configureInterface() {
+        cityLabel.textColor = textColor
+        currentTemparatureLabel.textColor = textColor
+        currentClimateLabel.textColor = textColor
+        temparatureIntervalLabel.textColor = textColor
+        
+        dayForecastTableView.sectionHeaderTopPadding = 0
+        
+        hourForecastCollectionView.backgroundColor = UIColor(red: 0, green: 0, blue: 0, alpha: 0.1)
+        dayForecastTableView.backgroundColor = UIColor(red: 0, green: 0, blue: 0, alpha: 0.1)
+        hourForecastCollectionView.layer.cornerRadius = 13
+        dayForecastTableView.layer.cornerRadius = 13
     }
     
     func getCurrentTime() -> CurrentTime {
@@ -95,10 +113,25 @@ class WeatherViewController: UIViewController {
     
     // 考量到有可能只更新一個資料的情況，所做的保留
     func getPinCitiesWeatherData() {
-        weatherResultData = []
-        pinCitiesWeatherData = []
+        weatherThreeDaysResultData = []
+        pinCitiesThreeDaysWeatherData = []
+        
+        weatherSevenDaysResultData = []
+        pinCitiesSevenDaysWeatherData = []
         for i in 0..<pinCities.count {
             getCityWeatherData(index: i)
+        }
+    }
+    
+    func organizeThreeDaysResultAllData() {
+        for i in 0..<pinCities.count {
+            organizeThreeDaysResultData(index: i)
+        }
+    }
+    
+    func organizeSevenDaysResultAllData() {
+        for i in 0..<pinCities.count {
+            organizeSevenDaysResultData(index: i)
         }
     }
     
@@ -121,37 +154,59 @@ class WeatherViewController: UIViewController {
         dayRequest.httpMethod = "GET"
         weekRequest.httpMethod = "GET"
         
-        let task = URLSession.shared.dataTask(with: dayRequest) { data, response, error in
+        let task1 = URLSession.shared.dataTask(with: dayRequest) { data, response, error in
             guard let data = data else {
                 print(String(describing: error))
                 return
             }
             //            print(String(data: data, encoding: .utf8)!)
-            
             do {
                 let result = try JSONDecoder().decode(WeatherResult.self, from: data)
                 //                print(result)
-                self.weatherResultData.append(result)
-                self.organizeResultData(index: index)
+                self.weatherThreeDaysResultData.append(result)
+                
+                if index == self.pinCities.count-1 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + self.delayInSeconds) {
+                        self.organizeThreeDaysResultAllData()
+                    }
+                }
             } catch {
                 print(error)
             }
-            
         }
+        let task2 = URLSession.shared.dataTask(with: weekRequest) { data, response, error in
+            guard let data = data else {
+                print(String(describing: error))
+                return
+            }
+            //            print(String(data: data, encoding: .utf8)!)
+            do {
+                let result = try JSONDecoder().decode(WeatherResult.self, from: data)
+                //                print(result)
+                self.weatherSevenDaysResultData.append(result)
+                if index == self.pinCities.count-1 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + self.delayInSeconds) {
+                        self.organizeSevenDaysResultAllData()
+                    }
+                }
+            } catch {
+                print(error)
+            }
+        }
+        task1.resume()
+        task2.resume()
         
-        task.resume()
         
     }
     
-    func organizeResultData(index: Int) {
+    func organizeThreeDaysResultData(index: Int) {
         
-        if let records = weatherResultData[index].records,
+        if let records = weatherThreeDaysResultData[index].records,
            let county = records.locations,
            let cities = county[0].location {
             let cityName = pinCities[index].cityName
             var citiesIndex = 999
             for i in 0..<cities.count {
-//                print(cities[i].locationName)
                 if cities[i].locationName == cityName {
                     citiesIndex = i
                 }
@@ -163,22 +218,21 @@ class WeatherViewController: UIViewController {
             }
             let elements = cities[citiesIndex].weatherElement!
             
-            var pinCitiesWeatherDataTemp = CityTwoDayWeatherData(probabilityofPrecipitation12h: [],
-                                                                 weatherPhenomenon: [],
-                                                                 apparentTemperature: [],
-                                                                 temperature: [],
-                                                                 relativeHumidity: [],
-                                                                 comfortIndex: [],
-                                                                 weatherDescription: [],
-                                                                 probabilityofPrecipitation6h: [],
-                                                                 windSpeed: [],
-                                                                 windDirection: [],
-                                                                 dewPointTemperature: [])
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-            let currentTime = Date()
-            let currentTimeString = dateFormatter.string(from: currentTime)
-            //            print(currentTimeString)
+            var pinCitiesWeatherDataTemp = CityThreeDaysWeatherData(probabilityofPrecipitation12h: [],
+                                                                    weatherPhenomenon: [],
+                                                                    apparentTemperature: [],
+                                                                    temperature: [],
+                                                                    relativeHumidity: [],
+                                                                    comfortIndex: [],
+                                                                    weatherDescription: [],
+                                                                    probabilityofPrecipitation6h: [],
+                                                                    windSpeed: [],
+                                                                    windDirection: [],
+                                                                    dewPointTemperature: [])
+            //            let dateFormatter = DateFormatter()
+            //            dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+            //            let currentTime = Date()
+            //            let currentTimeString = dateFormatter.string(from: currentTime)
             
             for i in 0..<elements.count {
                 var elementValues: [OrganizedElement] = []
@@ -196,50 +250,50 @@ class WeatherViewController: UIViewController {
                                let endTime = time[i].endTime {
                                 
                                 // 回傳的json會包含先前的時間，因此要篩選掉過時的資訊，但好像json來的時間不太一定
-//                            if let date1 = dateFormatter.date(from: startTime),
-//                               let date2 = dateFormatter.date(from: currentTimeString) {
-//
-//                                let result = date1.compare(date2)
-//                                if result == .orderedAscending {
-//                                    print("date2 is earlier than date1")
-//                                } else {
-                                        elementValueTemp = OrganizedElement(startTime: startTime,
-                                                                            endTime: endTime,
-                                                                            elementValue: [OrganizedElementValue(value: value, measures: measures)])
-                                        //                                    print(elementValueTemp)
-                                        if time[i].elementValue!.count > 1 {
-                                            if let elementValue = time[i].elementValue,
-                                               let value = elementValue[1].value,
-                                               let measures = elementValue[1].measures {
-                                                elementValueTemp?.elementValue.append(OrganizedElementValue(value: value, measures: measures))
-                                            }
-                                        }
-//                                    }
-//                                }
+                                //                            if let date1 = dateFormatter.date(from: startTime),
+                                //                               let date2 = dateFormatter.date(from: currentTimeString) {
+                                //
+                                //                                let result = date1.compare(date2)
+                                //                                if result == .orderedAscending {
+                                //                                    print("date2 is earlier than date1")
+                                //                                } else {
+                                elementValueTemp = OrganizedElement(startTime: startTime,
+                                                                    endTime: endTime,
+                                                                    elementValue: [OrganizedElementValue(value: value, measures: measures)])
+                                //                                    print(elementValueTemp)
+                                if time[i].elementValue!.count > 1 {
+                                    if let elementValue = time[i].elementValue,
+                                       let value = elementValue[1].value,
+                                       let measures = elementValue[1].measures {
+                                        elementValueTemp?.elementValue.append(OrganizedElementValue(value: value, measures: measures))
+                                    }
+                                }
+                                //                                    }
+                                //                                }
                             }
                             
                             if let dataTime = time[i].dataTime {
                                 
                                 // 回傳的json會包含先前的時間，因此要篩選掉過時的資訊
-//                                if let date1 = dateFormatter.date(from: dataTime),
-//                                   let date2 = dateFormatter.date(from: currentTimeString) {
-//
-//                                    let result = date1.compare(date2)
-//                                    if result == .orderedAscending {
-//                                        print("date2 is earlier than date1")
-//                                    } else {
-                                        elementValueTemp = OrganizedElement(dataTime: dataTime,
-                                                                            elementValue: [OrganizedElementValue(value: value, measures: measures)])
-                                        //                                    print(elementValueTemp)
-                                        if time[i].elementValue!.count > 1 {
-                                            if let elementValue = time[i].elementValue,
-                                               let value = elementValue[1].value,
-                                               let measures = elementValue[1].measures {
-                                                elementValueTemp?.elementValue.append(OrganizedElementValue(value: value, measures: measures))
-                                            }
-                                        }
-//                                    }
-//                                }
+                                //                                if let date1 = dateFormatter.date(from: dataTime),
+                                //                                   let date2 = dateFormatter.date(from: currentTimeString) {
+                                //
+                                //                                    let result = date1.compare(date2)
+                                //                                    if result == .orderedAscending {
+                                //                                        print("date2 is earlier than date1")
+                                //                                    } else {
+                                elementValueTemp = OrganizedElement(dataTime: dataTime,
+                                                                    elementValue: [OrganizedElementValue(value: value, measures: measures)])
+                                //                                    print(elementValueTemp)
+                                if time[i].elementValue!.count > 1 {
+                                    if let elementValue = time[i].elementValue,
+                                       let value = elementValue[1].value,
+                                       let measures = elementValue[1].measures {
+                                        elementValueTemp?.elementValue.append(OrganizedElementValue(value: value, measures: measures))
+                                    }
+                                }
+                                //                                    }
+                                //                                }
                                 
                             }
                         }
@@ -251,8 +305,7 @@ class WeatherViewController: UIViewController {
                         }
                     }
                 }
-                //                print("elementValues")
-//                print(elementValues)
+                
                 switch elements[i].elementName {
                 case "PoP12h":
                     pinCitiesWeatherDataTemp.probabilityofPrecipitation12h = elementValues
@@ -284,23 +337,21 @@ class WeatherViewController: UIViewController {
                     }
                 }
             }
-//                    print(pinCitiesWeatherDataTemp.weatherPhenomenon)
-            pinCitiesWeatherData.append(pinCitiesWeatherDataTemp)
+            pinCitiesThreeDaysWeatherData.append(pinCitiesWeatherDataTemp)
         }
         if index == pinCities.count-1 {
-            print("hourForecastCollectionView.reloadData()")
             DispatchQueue.main.async {
                 
-                self.cityLabel.text = self.currentCity
+                self.cityLabel.text = self.pinCities[self.currentCityIndex].cityName
                 
                 let dateFormatter = DateFormatter()
                 dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
                 let currentTime = Date()
                 
                 var key = false
-                for i in 0..<self.pinCitiesWeatherData[self.currentCityIndex].temperature.count-1 {
-                    if let timeString1 = self.pinCitiesWeatherData[self.currentCityIndex].temperature[i].dataTime,
-                       let timeString2 = self.pinCitiesWeatherData[self.currentCityIndex].temperature[i+1].dataTime,
+                for i in 0..<self.pinCitiesThreeDaysWeatherData[self.currentCityIndex].temperature.count-1 {
+                    if let timeString1 = self.pinCitiesThreeDaysWeatherData[self.currentCityIndex].temperature[i].dataTime,
+                       let timeString2 = self.pinCitiesThreeDaysWeatherData[self.currentCityIndex].temperature[i+1].dataTime,
                        let time1 = dateFormatter.date(from: timeString1),
                        let time2 = dateFormatter.date(from: timeString2),
                        key == false {
@@ -308,14 +359,14 @@ class WeatherViewController: UIViewController {
                         let result2 = currentTime.compare(time2)
                         if result1 == .orderedDescending && result2 == .orderedAscending {
                             key = true
-                            let currentTemperature = self.pinCitiesWeatherData[self.currentCityIndex].temperature[i].elementValue[0].value
+                            let currentTemperature = self.pinCitiesThreeDaysWeatherData[self.currentCityIndex].temperature[i].elementValue[0].value
                             self.currentTemparatureLabel.text = currentTemperature+"°"
-                            let currentClimate = self.pinCitiesWeatherData[self.currentCityIndex].weatherPhenomenon[i].elementValue[0].value
+                            let currentClimate = self.pinCitiesThreeDaysWeatherData[self.currentCityIndex].weatherPhenomenon[i].elementValue[0].value
                             self.currentClimateLabel.text = currentClimate
                             var maxTemperature = -999
                             var minTemperature = 999
                             for i in 0..<8 {
-                                if let currentTemperature = Int(self.pinCitiesWeatherData[self.currentCityIndex].temperature[i].elementValue[0].value) {
+                                if let currentTemperature = Int(self.pinCitiesThreeDaysWeatherData[self.currentCityIndex].temperature[i].elementValue[0].value) {
                                     if currentTemperature > maxTemperature {
                                         maxTemperature = currentTemperature
                                     }
@@ -329,15 +380,181 @@ class WeatherViewController: UIViewController {
                     }
                     
                 }
+                // 當第一筆資料已經不包含當前天氣時才會啟用
+                if key == false {
+                    let currentTemperature = self.pinCitiesThreeDaysWeatherData[self.currentCityIndex].temperature[0].elementValue[0].value
+                    self.currentTemparatureLabel.text = currentTemperature+"°"
+                    let currentClimate = self.pinCitiesThreeDaysWeatherData[self.currentCityIndex].weatherPhenomenon[0].elementValue[0].value
+                    self.currentClimateLabel.text = currentClimate
+                    var maxTemperature = -999
+                    var minTemperature = 999
+                    for i in 0..<8 {
+                        if let currentTemperature = Int(self.pinCitiesThreeDaysWeatherData[self.currentCityIndex].temperature[i].elementValue[0].value) {
+                            if currentTemperature > maxTemperature {
+                                maxTemperature = currentTemperature
+                            }
+                            if currentTemperature < minTemperature {
+                                minTemperature = currentTemperature
+                            }
+                            self.temparatureIntervalLabel.text = "H:\(maxTemperature)° L:\(minTemperature)°"
+                        }
+                    }
+                }
+                
                 self.hourForecastCollectionView.reloadData()
+                self.dayForecastTableView.reloadData()
             }
         }
-        
     }
     
-    //            DispatchQueue.main.async {
-    //                self.cityLabel.text = locationName
-    //            }
+    func organizeSevenDaysResultData(index: Int) {
+        
+        if let records = weatherSevenDaysResultData[index].records,
+           let county = records.locations,
+           let cities = county[0].location {
+            let cityName = pinCities[index].cityName
+            var citiesIndex = 999
+            for i in 0..<cities.count {
+                if cities[i].locationName == cityName {
+                    citiesIndex = i
+                }
+            }
+            
+            if citiesIndex == 999 {
+                print("no city to origanize")
+                return
+            }
+            let elements = cities[citiesIndex].weatherElement!
+            
+            var pinCitiesWeatherDataTemp = CitySevenDaysWeatherData(probabilityofPrecipitation12h: [], averageTemperature: [], averageRelativeHumidity: [], minComfortIndex: [], windSpeed: [], maxApparentTemperature: [], weatherPhenomenon: [], maxComfortIndex: [], minTemperature: [], ultravioletIndex: [], weatherDescription: [], minApparentTemperature: [], maxTemperature: [], windDirection: [], averageDewPointTemperature: [])
+            
+            //            let dateFormatter = DateFormatter()
+            //            dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+            //            let currentTime = Date()
+            //            let currentTimeString = dateFormatter.string(from: currentTime)
+            
+            for i in 0..<elements.count {
+                var elementValues: [OrganizedElement] = []
+                if let time = elements[i].time {
+                    for i in 0..<time.count {
+                        var elementValueTemp: OrganizedElement?
+                        
+                        // 區分成startTime dataTime兩種，並盡量簡化它
+                        
+                        if let elementValue = time[i].elementValue,
+                           let value = elementValue[0].value,
+                           let measures = elementValue[0].measures {
+                            
+                            if let startTime = time[i].startTime,
+                               let endTime = time[i].endTime {
+                                
+                                // 回傳的json會包含先前的時間，因此要篩選掉過時的資訊，但好像json來的時間不太一定
+                                //                            if let date1 = dateFormatter.date(from: startTime),
+                                //                               let date2 = dateFormatter.date(from: currentTimeString) {
+                                //
+                                //                                let result = date1.compare(date2)
+                                //                                if result == .orderedAscending {
+                                //                                    print("date2 is earlier than date1")
+                                //                                } else {
+                                elementValueTemp = OrganizedElement(startTime: startTime,
+                                                                    endTime: endTime,
+                                                                    elementValue: [OrganizedElementValue(value: value, measures: measures)])
+                                //                                    print(elementValueTemp)
+                                if time[i].elementValue!.count > 1 {
+                                    if let elementValue = time[i].elementValue,
+                                       let value = elementValue[1].value,
+                                       let measures = elementValue[1].measures {
+                                        elementValueTemp?.elementValue.append(OrganizedElementValue(value: value, measures: measures))
+                                    }
+                                }
+                                //                                    }
+                                //                                }
+                            }
+                            
+                            if let dataTime = time[i].dataTime {
+                                
+                                // 回傳的json會包含先前的時間，因此要篩選掉過時的資訊
+                                //                                if let date1 = dateFormatter.date(from: dataTime),
+                                //                                   let date2 = dateFormatter.date(from: currentTimeString) {
+                                //
+                                //                                    let result = date1.compare(date2)
+                                //                                    if result == .orderedAscending {
+                                //                                        print("date2 is earlier than date1")
+                                //                                    } else {
+                                elementValueTemp = OrganizedElement(dataTime: dataTime,
+                                                                    elementValue: [OrganizedElementValue(value: value, measures: measures)])
+                                //                                    print(elementValueTemp)
+                                if time[i].elementValue!.count > 1 {
+                                    if let elementValue = time[i].elementValue,
+                                       let value = elementValue[1].value,
+                                       let measures = elementValue[1].measures {
+                                        elementValueTemp?.elementValue.append(OrganizedElementValue(value: value, measures: measures))
+                                    }
+                                }
+                                //                                    }
+                                //                                }
+                                
+                            }
+                        }
+                        
+                        
+                        
+                        if let temp = elementValueTemp {
+                            elementValues.append(temp)
+                        }
+                    }
+                }
+                if elementValues.count == 0 {
+                    print(elements[i].elementName)
+                }
+                switch elements[i].elementName {
+                case "PoP12h":
+                    pinCitiesWeatherDataTemp.probabilityofPrecipitation12h = elementValues
+                case "T":
+                    pinCitiesWeatherDataTemp.averageTemperature = elementValues
+                case "RH":
+                    pinCitiesWeatherDataTemp.averageRelativeHumidity = elementValues
+                case "MinCI":
+                    pinCitiesWeatherDataTemp.minComfortIndex = elementValues
+                case "WS":
+                    pinCitiesWeatherDataTemp.windSpeed = elementValues
+                case "MaxAT":
+                    pinCitiesWeatherDataTemp.maxApparentTemperature = elementValues
+                case "Wx":
+                    pinCitiesWeatherDataTemp.weatherPhenomenon = elementValues
+                case "MaxCI":
+                    pinCitiesWeatherDataTemp.maxComfortIndex = elementValues
+                case "MinT":
+                    pinCitiesWeatherDataTemp.minTemperature = elementValues
+                case "UVI":
+                    pinCitiesWeatherDataTemp.ultravioletIndex = elementValues
+                case "WeatherDescription":
+                    pinCitiesWeatherDataTemp.weatherDescription = elementValues
+                case "MinAT":
+                    pinCitiesWeatherDataTemp.minApparentTemperature = elementValues
+                case "MaxT":
+                    pinCitiesWeatherDataTemp.maxTemperature = elementValues
+                case "WD":
+                    pinCitiesWeatherDataTemp.windDirection = elementValues
+                case "Td":
+                    pinCitiesWeatherDataTemp.averageDewPointTemperature = elementValues
+                default:
+                    if let elementName = elements[i].elementName {
+                        print("Organize data error, element name:", elementName)
+                    } else {
+                        print("Organize error, unknown data")
+                    }
+                }
+            }
+            pinCitiesSevenDaysWeatherData.append(pinCitiesWeatherDataTemp)
+        }
+        if index == pinCities.count-1 {
+            DispatchQueue.main.async {
+                self.hourForecastCollectionView.reloadData()
+                self.dayForecastTableView.reloadData()
+            }
+        }
+    }
     
     func checkLocationAuth() {
         
@@ -371,7 +588,7 @@ class WeatherViewController: UIViewController {
         let geocoder = CLGeocoder()
         let currentLocation = CLLocation(latitude: currentLat, longitude: currentLon)
         //        print(currentLocation)
-        print(NSLocale.current)
+//        print(NSLocale.current)
         let locale = Locale(identifier: "zh_TW")
         geocoder.reverseGeocodeLocation(currentLocation, preferredLocale: locale) { placemarks, error -> Void in
             if error != nil {
@@ -379,14 +596,17 @@ class WeatherViewController: UIViewController {
                 return
             }
             
-            guard let placemark = placemarks?.first else {
+            guard (placemarks?.first) != nil else {
                 return
             }
             
             if let placemark = placemarks?[0],
-               let cityName = placemark.locality {
+               let cityName = placemark.locality,
+               let countyName = placemark.subAdministrativeArea {
                 self.currentCity = cityName
-                print("cityName: ", cityName)
+                self.currentCounty = countyName
+                self.pinCities[0] = City(countyName: countyName, cityName: cityName)
+                self.getPinCitiesWeatherData()
             }
         }
     }
@@ -410,6 +630,8 @@ class WeatherViewController: UIViewController {
     
     @IBAction func tappedTestButton() {
         //        getCityWeatherData(cityName: "彰化縣")
+        // 停止它，否則會報錯，似乎也可以用performBatchUpdates(_:completion:)來解決
+        hourForecastCollectionView.setContentOffset(hourForecastCollectionView.contentOffset, animated: false)
         reverseGeocoder()
     }
     
@@ -433,45 +655,45 @@ extension WeatherViewController: UICollectionViewDelegateFlowLayout {
 
 extension WeatherViewController: UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        print("pinCitiesWeatherData.count:", pinCitiesWeatherData.count)
-        if pinCitiesWeatherData.count == 0 {
+        if pinCitiesThreeDaysWeatherData.count == 0 {
             return 0
         } else {
-            return pinCitiesWeatherData[currentCityIndex].weatherPhenomenon.count
+            return pinCitiesThreeDaysWeatherData[currentCityIndex].weatherPhenomenon.count
         }
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "hourclimatecell", for: indexPath) as! WeatherHourClimateCollectionViewCell
-        cell.backgroundColor = UIColor.systemGray6
         
-        let wx = pinCitiesWeatherData[currentCityIndex].weatherPhenomenon[indexPath.row].elementValue[0].value
+        cell.timeLabel.textColor = textColor
+            cell.temperatureLabel.textColor = textColor
         
+        let wx = pinCitiesThreeDaysWeatherData[currentCityIndex].weatherPhenomenon[indexPath.row].elementValue[0].value
         switch wx {
         case "晴":
-            cell.forecastImageView.image = UIImage(systemName: "sun.max")
+            cell.forecastImageView.image = UIImage(systemName: "sun.max.fill")?.withRenderingMode(.alwaysOriginal)
         case "陰":
-            cell.forecastImageView.image = UIImage(systemName: "cloud.sun")
+            cell.forecastImageView.image = UIImage(systemName: "cloud.sun.fill")?.withRenderingMode(.alwaysOriginal)
         case "多雲":
-            cell.forecastImageView.image = UIImage(systemName: "cloud")
+            cell.forecastImageView.image = UIImage(systemName: "cloud.fill")?.withRenderingMode(.alwaysOriginal)
         case "短暫雨":
-            cell.forecastImageView.image = UIImage(systemName: "choud.rain")
+            cell.forecastImageView.image = UIImage(systemName: "cloud.rain.fill")?.withRenderingMode(.alwaysOriginal)
         default:
             print("字串", wx)
-            }
-        let temperature = pinCitiesWeatherData[currentCityIndex].temperature[indexPath.row].elementValue[0].value
+        }
+        let temperature = pinCitiesThreeDaysWeatherData[currentCityIndex].temperature[indexPath.row].elementValue[0].value
         cell.temperatureLabel.text = temperature + "°"
         
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         
         var timeString = ""
-        if let time = pinCitiesWeatherData[currentCityIndex].temperature[indexPath.row].startTime {
+        if let time = pinCitiesThreeDaysWeatherData[currentCityIndex].temperature[indexPath.row].startTime {
             timeString = time
         }
         
-        if let time = pinCitiesWeatherData[currentCityIndex].temperature[indexPath.row].dataTime {
+        if let time = pinCitiesThreeDaysWeatherData[currentCityIndex].temperature[indexPath.row].dataTime {
             timeString = time
         }
         
@@ -481,21 +703,21 @@ extension WeatherViewController: UICollectionViewDataSource {
             let month = calendar.component(.month, from: date)
             let day = calendar.component(.day, from: date)
             let hour = calendar.component(.hour, from: date)
-            let monthInt = Int(month)
-            let dayInt = Int(day)
+            //            let monthInt = Int(month)
+            //            let dayInt = Int(day)
             let hourInt = Int(hour)
             //            print("Hour: \(hourInt)")
-//            if indexPath.row == 0 {
-//                cell.timeLabel.text = "NOW"
-//            } else
+            //            if indexPath.row == 0 {
+            //                cell.timeLabel.text = "NOW"
+            //            } else
             if hourInt == 0 {
-                cell.timeLabel.text = "12AM"
+                cell.timeLabel.text = "\(month)/\(day)\n12AM"
             } else if hourInt == 12 {
-                cell.timeLabel.text = "\(hourInt)PM"
+                cell.timeLabel.text = "\(month)/\(day)\n\(hourInt)PM"
             } else if hourInt > 12 {
-                cell.timeLabel.text = "\(hourInt-12)PM"
+                cell.timeLabel.text = "\(month)/\(day)\n\(hourInt-12)PM"
             } else {
-                cell.timeLabel.text = String(hourInt)+"AM"
+                cell.timeLabel.text = "\(month)/\(day)\n"+String(hourInt)+"AM"
             }
         }
         
@@ -507,26 +729,77 @@ extension WeatherViewController: UICollectionViewDataSource {
 extension WeatherViewController: UITableViewDelegate {
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return 20
+        return 7
     }
     
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        if indexPath.row == 0 {
-            return 40
-        } else {
-            return 50
-        }
+        return 50
+    }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: false)
+    }
+    
+    func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        35
     }
     
 }
 
 extension WeatherViewController: UITableViewDataSource {
     
+    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+        let view = tableView.tableHeaderView as! WeatherDayClimateTableViewHeaderView
+        view.titleLabel.textColor = textColor
+        return view
+    }
+    
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
-        let cell = tableView.dequeueReusableCell(withIdentifier: "dayclimatecell", for: indexPath)
-        cell.backgroundColor = UIColor.systemGray3
+        let cell = tableView.dequeueReusableCell(withIdentifier: "dayclimatecell", for: indexPath) as! WeatherDayClimateTableViewCell
         
+        cell.weekLabel.textColor = textColor
+        cell.lowTemperatureLabel.textColor = textColor
+        cell.highTemperatureLabel.textColor = textColor
+        
+        if pinCitiesSevenDaysWeatherData.count == 0 {
+            cell.weekLabel.text = "N/A"
+            cell.lowTemperatureLabel.text = "N/A"
+            cell.highTemperatureLabel.text = "N/A"
+            return cell
+        }
+        let currentDate = Date()
+        let calendar = Calendar.current
+        if let day = calendar.date(byAdding: .day, value: indexPath.row, to: currentDate) {
+            let weekday = calendar.component(.weekday, from: day)
+            if indexPath.row == 0 {
+                cell.weekLabel.text = "Today"
+            } else {
+                cell.weekLabel.text = AllWeekday.shared.allWeekday[weekday-1]
+            }
+            let (min, max) = getMinAndMaxTemperature(date: day)
+            let (sevenMin, sevenMax) = getSevenDayMinAndMaxTemperature()
+            
+            cell.lowTemperatureLabel.text = String(min)
+            cell.highTemperatureLabel.text = String(max)
+            
+            let sevneMinDouble = Double(sevenMin)
+            let sevneMaxDouble = Double(sevenMax)
+            let minDouble = Double(min)
+            let maxDouble = Double(max)
+            
+            let left = (minDouble-sevneMinDouble)/(sevneMaxDouble-sevneMinDouble)
+            let right = (maxDouble-minDouble)/(sevneMaxDouble-sevneMinDouble)
+            
+            cell.lineView.widthLeft = left
+            cell.lineView.widthRight = right
+            
+            let wx = getWeatherPhenomenonForDate(date: currentDate)
+            
+            cell.weatherImageView.image = UIImage(systemName: wx)?.withRenderingMode(.alwaysOriginal)
+        } else {
+            print("day climate tableview day calculation failure")
+        }
         return cell
     }
     
@@ -552,8 +825,137 @@ extension WeatherViewController: CLLocationManagerDelegate {
 
 extension WeatherViewController: SearchViewControllerDelegate {
     func tappedSearchButton(county: String,city: String) {
-        print(#function)
-//        getCityWeatherData(countyName: county, cityName: city)
+        pinCities = [City(countyName: county, cityName: city)]
+        getPinCitiesWeatherData()
     }
 }
 
+extension WeatherViewController {
+    func getMinAndMaxTemperature(date: Date) -> (Int, Int) {
+        
+        let calendar = Calendar.current
+        
+        let year = calendar.component(.year, from: date)
+        let month = calendar.component(.month, from: date)
+        let day = calendar.component(.day, from: date)
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        
+        var minTemperatureArray: [Int] = []
+        var maxTemperatureArray: [Int] = []
+        
+        for i in 0..<pinCitiesSevenDaysWeatherData[currentCityIndex].minTemperature.count {
+            if let timeString = pinCitiesSevenDaysWeatherData[currentCityIndex].minTemperature[i].startTime,
+               let minTemperature = Int(pinCitiesSevenDaysWeatherData[currentCityIndex].minTemperature[i].elementValue[0].value),
+               let maxTemperature = Int(pinCitiesSevenDaysWeatherData[currentCityIndex].maxTemperature[i].elementValue[0].value),
+               let date = dateFormatter.date(from: timeString) {
+                let dataYear = calendar.component(.year, from: date)
+                let dataMonth = calendar.component(.month, from: date)
+                let dataDay = calendar.component(.day, from: date)
+                if dataYear == year && dataMonth == month && dataDay == day {
+                    minTemperatureArray.append(minTemperature)
+                    maxTemperatureArray.append(maxTemperature)
+                }
+            }
+        }
+        var min = 999
+        var max = -999
+        for i in 0..<minTemperatureArray.count {
+            if minTemperatureArray[i] < min {
+                min = minTemperatureArray[i]
+            }
+            if maxTemperatureArray[i] > max {
+                max = maxTemperatureArray[i]
+            }
+        }
+        
+        return (min, max)
+    }
+    
+    func getSevenDayMinAndMaxTemperature() -> (Int, Int) {
+        
+        let todayDate = Date()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        
+        var min = 999
+        var max = -999
+        
+        for i in 0..<pinCitiesSevenDaysWeatherData[currentCityIndex].minTemperature.count {
+            if let timeString = pinCitiesSevenDaysWeatherData[currentCityIndex].minTemperature[i].startTime,
+               let minTemperature = Int(pinCitiesSevenDaysWeatherData[currentCityIndex].minTemperature[i].elementValue[0].value),
+               let maxTemperature = Int(pinCitiesSevenDaysWeatherData[currentCityIndex].maxTemperature[i].elementValue[0].value),
+               let date = dateFormatter.date(from: timeString) {
+                
+                // 計算 date 與 todayDate 的時間差
+                let interval = date.timeIntervalSince(todayDate)
+                let days = Int(interval / (24 * 60 * 60))
+                
+                // 判斷 date 是否在七天之內
+                if days >= 0 && days <= 6 {
+                    if minTemperature < min {
+                        min = minTemperature
+                    }
+                    if maxTemperature > max {
+                        max = maxTemperature
+                    }
+                }
+            }
+        }
+        return (min, max)
+    }
+    
+    func getWeatherPhenomenonForDate(date: Date) -> String {
+        
+        let todayDate = Date()
+        let calendar = Calendar.current
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        
+        let todayYear = calendar.component(.year, from: todayDate)
+        let todayMonth = calendar.component(.month, from: todayDate)
+        let todayDay = calendar.component(.day, from: todayDate)
+        
+        for i in 0..<pinCitiesSevenDaysWeatherData[currentCityIndex].weatherPhenomenon.count {
+            if let timeString = pinCitiesSevenDaysWeatherData[currentCityIndex].weatherPhenomenon[i].startTime,
+               let dataDate = dateFormatter.date(from: timeString) {
+                let dataYear = calendar.component(.year, from: dataDate)
+                let dataMonth = calendar.component(.month, from: dataDate)
+                let dataDay = calendar.component(.day, from: dataDate)
+                let dataHour = calendar.component(.hour, from: dataDate)
+                var wx = "questionmark.square.fill"
+                if dataYear == todayYear && dataMonth == todayMonth && dataDay == todayDay && dataHour == 6 {
+                    wx = pinCitiesSevenDaysWeatherData[currentCityIndex].weatherPhenomenon[i].elementValue[0].value
+                } else {
+                    wx = pinCitiesSevenDaysWeatherData[currentCityIndex].weatherPhenomenon[0].elementValue[0].value
+                }
+                switch wx {
+                case "晴天":
+                    return "sun.fill"
+                case "晴時多雲":
+                    return "cloud.sun.fill"
+                case "多雲時晴":
+                    return "cloud.sun.fill"
+                case "陰天":
+                    return "cloud.fill"
+                case "多雲":
+                    return "cloud.fill"
+                case "多雲短暫雨":
+                    return "cloud.rain.fill"
+                case "陰時多雲短暫雨":
+                    return "cloud.sun.rain.fill"
+                case "多雲時晴短暫雨":
+                    return "cloud.sun.rain.fill"
+                default:
+                    print("未定義天氣", wx, "getWeatherPhenomenonForDate(date: Date)")
+                    return "questionmark.square.fill"
+                }
+                
+            }
+        }
+        print("something error getWeatherPhenomenonForDate(date: Date)")
+        return "questionmark.square.fill"
+    }
+    
+}

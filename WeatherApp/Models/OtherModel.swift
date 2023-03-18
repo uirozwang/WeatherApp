@@ -14,3 +14,9 @@ struct CurrentTime {
     var hour: Int
     var min: Int
 }
+
+class AllWeekday {
+    static let shared = AllWeekday()
+    var allWeekday = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    private init() {}
+}
