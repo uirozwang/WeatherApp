@@ -33,7 +33,7 @@ class WeatherViewController: UIViewController {
     var currentLon = 120.558316
     var currentCounty = ""
     var currentCity = ""
-    let delayInSeconds: TimeInterval = 0.8
+    let delayInSeconds: TimeInterval = 1
     let textColor = UIColor(red: 1, green: 1, blue: 1, alpha: 1)
     
     // index 0 is location, other places is set by user
@@ -99,15 +99,7 @@ class WeatherViewController: UIViewController {
             
         } else {
             //            print("not first luanch")
-            if let data = UserDefaults.standard.data(forKey: "pinCities") {
-                do {
-                    let data = try JSONDecoder().decode([City].self, from: data)
-                    self.pinCities = data
-                    getPinCitiesWeatherData()
-                } catch {
-                    print("Decoding error:", error)
-                }
-            }
+            loadPinCitiesData()
         }
     }
     
@@ -668,7 +660,6 @@ class WeatherViewController: UIViewController {
     }
     
     @IBAction func tappedTestButton() {
-        //        getCityWeatherData(cityName: "彰化縣")
         // 停止它，否則會報錯，似乎也可以用performBatchUpdates(_:completion:)來解決
         hourForecastCollectionView.setContentOffset(hourForecastCollectionView.contentOffset, animated: false)
         reverseGeocoder()
@@ -863,8 +854,8 @@ extension WeatherViewController: CLLocationManagerDelegate {
         
         let userLocation: CLLocation = locations[0]
         print("didUpdateLocations ", userLocation)
-        reverseGeocoder()
-//        getPinCitiesWeatherData()
+//        reverseGeocoder()
+        //        getPinCitiesWeatherData()
         
     }
     
@@ -878,17 +869,34 @@ extension WeatherViewController: CLLocationManagerDelegate {
 extension WeatherViewController: SearchViewControllerDelegate {
     func tappedSearchButton(county: String,city: String) {
         pinCities = [City(countyName: county, cityName: city)]
+        savePinCitiesData()
+        getPinCitiesWeatherData()
+    }
+}
+
+extension WeatherViewController {
+    
+    func savePinCitiesData() {
         do {
             let data = try JSONEncoder().encode(pinCities)
             UserDefaults.standard.set(data, forKey: "pinCities")
         } catch {
             print("Encoding error", error)
         }
-        getPinCitiesWeatherData()
     }
-}
-
-extension WeatherViewController {
+    
+    func loadPinCitiesData() {
+        if let data = UserDefaults.standard.data(forKey: "pinCities") {
+            do {
+                let data = try JSONDecoder().decode([City].self, from: data)
+                self.pinCities = data
+                getPinCitiesWeatherData()
+            } catch {
+                print("Decoding error:", error)
+            }
+        }
+    }
+    
     func getMinAndMaxTemperature(date: Date) -> (Int, Int) {
         
         let calendar = Calendar.current
