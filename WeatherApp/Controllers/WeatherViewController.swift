@@ -15,8 +15,12 @@ class WeatherViewController: UIViewController {
     @IBOutlet weak var currentClimateLabel: UILabel!
     @IBOutlet weak var temparatureIntervalLabel: UILabel!
     
+    @IBOutlet weak var scrollView: UIScrollView!
     @IBOutlet weak var hourForecastCollectionView: UICollectionView!
     @IBOutlet weak var dayForecastTableView: UITableView!
+    
+    @IBOutlet weak var searchButton: UIButton!
+    @IBOutlet weak var locationButton: UIButton!
     
     let opendataAuth = "CWB-77C0E18C-8CFF-40CB-9335-BCB226CFF4DE"
     
@@ -33,7 +37,7 @@ class WeatherViewController: UIViewController {
     var currentLon = 120.558316
     var currentCounty = ""
     var currentCity = ""
-    let delayInSeconds: TimeInterval = 1
+    let delayInSeconds: TimeInterval = 0
     let textColor = UIColor(red: 1, green: 1, blue: 1, alpha: 1)
     
     // index 0 is location, other places is set by user
@@ -72,6 +76,11 @@ class WeatherViewController: UIViewController {
         locationMgr.stopUpdatingLocation()
     }
     
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        hourForecastCollectionView.frame.size.width = scrollView.frame.width-40
+    }
+    
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "searchVC" {
             let vc = segue.destination as? SearchViewController
@@ -86,19 +95,14 @@ class WeatherViewController: UIViewController {
         if !defaults.bool(forKey: "HasLaunchedBefore") {
             // 第一次啟動
             defaults.set(true, forKey: "HasLaunchedBefore")
-            
             pinCities = [City(countyName: "新北市", cityName: "中和區")]
-            //            print("first luanch")
-            
             do {
                 let data = try JSONEncoder().encode(pinCities)
                 UserDefaults.standard.set(data, forKey: "pinCities")
             } catch {
                 print("Encoding error", error)
             }
-            
         } else {
-            //            print("not first luanch")
             loadPinCitiesData()
         }
     }
@@ -111,13 +115,18 @@ class WeatherViewController: UIViewController {
         currentTemparatureLabel.textColor = textColor
         currentClimateLabel.textColor = textColor
         temparatureIntervalLabel.textColor = textColor
+        searchButton.tintColor = textColor
+        locationButton.tintColor = textColor
         
         dayForecastTableView.sectionHeaderTopPadding = 0
+        
+        hourForecastCollectionView.frame.size.width = scrollView.frame.size.width-40
         
         hourForecastCollectionView.backgroundColor = UIColor(red: 0, green: 0, blue: 0, alpha: 0.1)
         dayForecastTableView.backgroundColor = UIColor(red: 0, green: 0, blue: 0, alpha: 0.1)
         hourForecastCollectionView.layer.cornerRadius = 13
         dayForecastTableView.layer.cornerRadius = 13
+        
     }
     
     func getCurrentTime() -> CurrentTime {
@@ -138,6 +147,326 @@ class WeatherViewController: UIViewController {
         return currentTime
     }
     
+    
+    
+    func checkLocationAuth() {
+        
+        let authorizationStatus: CLAuthorizationStatus
+        
+        if #available(iOS 14, *){
+            authorizationStatus = locationMgr.authorizationStatus
+        } else {
+            authorizationStatus = CLLocationManager.authorizationStatus()
+        }
+        
+        switch authorizationStatus {
+        case .notDetermined:
+            // First time launch app need to get authorize from user
+            locationMgr.requestWhenInUseAuthorization()
+            locationMgr.startUpdatingLocation()
+        case .authorizedWhenInUse:
+            locationMgr.startUpdatingLocation()
+        case .denied:
+            let alertController = UIAlertController(title: "定位權限已關閉", message: "如要變更權限，請至 設定 > 隱私權 > 定位服務 開啟", preferredStyle: .alert)
+            let okAction = UIAlertAction(title: "OK", style: .default) { action in
+                self.getPinCitiesWeatherData()
+            }
+            alertController.addAction(okAction)
+            self.present(alertController, animated: true)
+        default:
+            break
+        }
+        
+    }
+    
+    func reverseGeocoder() {
+        let geocoder = CLGeocoder()
+        let currentLocation = CLLocation(latitude: currentLat, longitude: currentLon)
+        //        print(currentLocation)
+        //        print(NSLocale.current)
+        let locale = Locale(identifier: "zh_TW")
+        geocoder.reverseGeocodeLocation(currentLocation, preferredLocale: locale) { placemarks, error -> Void in
+            if error != nil {
+                print("ReverseGeocoder Error: ", error!.localizedDescription)
+                return
+            }
+            
+            guard (placemarks?.first) != nil else {
+                return
+            }
+            
+            if let placemark = placemarks?[0],
+               let cityName = placemark.locality,
+               let countyName = placemark.subAdministrativeArea {
+                self.currentCity = cityName
+                self.currentCounty = countyName
+                self.pinCities[0] = City(countyName: countyName, cityName: cityName)
+                self.getPinCitiesWeatherData()
+            }
+        }
+    }
+    
+    func startTimer() {
+        let timer = Timer(fire: Date(), interval: 60, repeats: true) { timer in
+            self.checkTime()
+        }
+        RunLoop.current.add(timer, forMode: .default)
+        timer.tolerance = 0.1
+    }
+    
+    func checkTime() {
+        let now = Date()
+        let calendar = Calendar.current
+        let minute = calendar.component(.minute, from: now)
+        if minute == 0 {
+            // 每到整點更新天氣資訊
+        }
+    }
+    
+    @IBAction func tappedTestButton() {
+        // 停止它，否則會報錯，似乎也可以用performBatchUpdates(_:completion:)來解決
+        hourForecastCollectionView.setContentOffset(hourForecastCollectionView.contentOffset, animated: false)
+        reverseGeocoder()
+    }
+    
+}
+
+extension WeatherViewController: UICollectionViewDelegateFlowLayout {
+    
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        
+        let cellWidth: CGFloat = 70
+        let cellHeight = hourForecastCollectionView.bounds.height
+        
+        return CGSize(width: cellWidth, height: cellHeight)
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, insetForSectionAt section: Int) -> UIEdgeInsets {
+        return UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+    }
+    
+}
+
+extension WeatherViewController: UICollectionViewDataSource {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        if pinCitiesThreeDaysWeatherData.count == 0 {
+            return 0
+        } else {
+            return pinCitiesThreeDaysWeatherData[currentCityIndex].weatherPhenomenon.count
+        }
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "hourclimatecell", for: indexPath) as! WeatherHourClimateCollectionViewCell
+        
+        cell.timeLabel.textColor = textColor
+        cell.temperatureLabel.textColor = textColor
+        
+        let wx = pinCitiesThreeDaysWeatherData[currentCityIndex].weatherPhenomenon[indexPath.row].elementValue[0].value
+        switch wx {
+        case "晴":
+            cell.forecastImageView.image = UIImage(systemName: "sun.max.fill")?.withRenderingMode(.alwaysOriginal)
+        case "陰":
+            cell.forecastImageView.image = UIImage(systemName: "cloud.sun.fill")?.withRenderingMode(.alwaysOriginal)
+        case "多雲":
+            cell.forecastImageView.image = UIImage(systemName: "cloud.fill")?.withRenderingMode(.alwaysOriginal)
+        case "短暫雨":
+            cell.forecastImageView.image = UIImage(systemName: "cloud.rain.fill")?.withRenderingMode(.alwaysOriginal)
+        case "短暫陣雨":
+            cell.forecastImageView.image = UIImage(systemName: "cloud.rain.fill")?.withRenderingMode(.alwaysOriginal)
+        case "短暫陣雨或雷雨":
+            cell.forecastImageView.image = UIImage(systemName: "cloud.bolt.rain.fill")?.withRenderingMode(.alwaysOriginal)
+        default:
+            print("字串", wx)
+        }
+        let temperature = pinCitiesThreeDaysWeatherData[currentCityIndex].temperature[indexPath.row].elementValue[0].value
+        cell.temperatureLabel.text = temperature + "°"
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        
+        var timeString = ""
+        if let time = pinCitiesThreeDaysWeatherData[currentCityIndex].temperature[indexPath.row].startTime {
+            timeString = time
+        }
+        
+        if let time = pinCitiesThreeDaysWeatherData[currentCityIndex].temperature[indexPath.row].dataTime {
+            timeString = time
+        }
+        
+        if let date = dateFormatter.date(from: timeString) {
+            let calendar = Calendar.current
+            
+            let month = calendar.component(.month, from: date)
+            let day = calendar.component(.day, from: date)
+            let hour = calendar.component(.hour, from: date)
+            //            let monthInt = Int(month)
+            //            let dayInt = Int(day)
+            let hourInt = Int(hour)
+            //            print("Hour: \(hourInt)")
+            //            if indexPath.row == 0 {
+            //                cell.timeLabel.text = "NOW"
+            //            } else
+            if hourInt == 0 {
+                cell.timeLabel.text = "\(month)/\(day)\n12AM"
+            } else if hourInt == 12 {
+                cell.timeLabel.text = "\(month)/\(day)\n\(hourInt)PM"
+            } else if hourInt > 12 {
+                cell.timeLabel.text = "\(month)/\(day)\n\(hourInt-12)PM"
+            } else {
+                cell.timeLabel.text = "\(month)/\(day)\n"+String(hourInt)+"AM"
+            }
+        }
+        return cell
+    }
+}
+
+extension WeatherViewController: UITableViewDelegate {
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return 7
+    }
+    
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return 50
+    }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: false)
+    }
+    
+    func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        35
+    }
+    
+}
+
+extension WeatherViewController: UITableViewDataSource {
+    
+    //    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+    //        let view = tableView.tableHeaderView as! WeatherDayClimateTableViewHeaderView
+    //        view.titleLabel.textColor = textColor
+    //        return view
+    //    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        
+        let cell = tableView.dequeueReusableCell(withIdentifier: "dayclimatecell", for: indexPath) as! WeatherDayClimateTableViewCell
+        
+        cell.backgroundColor = UIColor(red: 1, green: 1, blue: 1, alpha: 0)
+        
+        cell.weekLabel.textColor = textColor
+        cell.lowTemperatureLabel.textColor = textColor
+        cell.highTemperatureLabel.textColor = textColor
+        
+        if pinCitiesSevenDaysWeatherData.count == 0 {
+            cell.weekLabel.text = "N/A"
+            cell.lowTemperatureLabel.text = "N/A"
+            cell.highTemperatureLabel.text = "N/A"
+            return cell
+        }
+        let currentDate = Date()
+        let calendar = Calendar.current
+        if let day = calendar.date(byAdding: .day, value: indexPath.row, to: currentDate) {
+            let weekday = calendar.component(.weekday, from: day)
+            if indexPath.row == 0 {
+                cell.weekLabel.text = "Today"
+            } else {
+                cell.weekLabel.text = AllWeekday.shared.allWeekday[weekday-1]
+            }
+            let (min, max) = getMinAndMaxTemperature(date: day)
+            let (sevenMin, sevenMax) = getSevenDayMinAndMaxTemperature()
+            
+            if min == 999 && max == -999 {
+                cell.lowTemperatureLabel.text = "N/A"
+                cell.highTemperatureLabel.text = "N/A"
+                cell.lineView.isHidden = true
+                cell.weatherImageView.isHidden = true
+            } else {
+                cell.lowTemperatureLabel.text = String(min)+"°"
+                cell.highTemperatureLabel.text = String(max)+"°"
+                cell.lineView.isHidden = false
+                cell.weatherImageView.isHidden = false
+            }
+            
+            let sevneMinDouble = Double(sevenMin)
+            let sevneMaxDouble = Double(sevenMax)
+            let minDouble = Double(min)
+            let maxDouble = Double(max)
+            
+            let left = (minDouble-sevneMinDouble)/(sevneMaxDouble-sevneMinDouble)
+            let right = (maxDouble-minDouble)/(sevneMaxDouble-sevneMinDouble)
+            
+            cell.lineView.widthLeft = left
+            cell.lineView.widthRight = right
+            
+            let wx = getWeatherPhenomenonForDate(date: currentDate)
+            
+            cell.weatherImageView.image = UIImage(systemName: wx)?.withRenderingMode(.alwaysOriginal)
+        } else {
+            print("day climate tableview day calculation failure")
+        }
+        return cell
+    }
+    
+    
+}
+
+extension WeatherViewController: CLLocationManagerDelegate {
+    
+    // 定位改變
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        
+        let userLocation: CLLocation = locations[0]
+        print("didUpdateLocations ", userLocation)
+//        reverseGeocoder()
+        //        getPinCitiesWeatherData()
+        
+    }
+    
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        checkLocationAuth()
+    }
+    
+    
+}
+
+extension WeatherViewController: SearchViewControllerDelegate {
+    func tappedSearchButton(county: String,city: String) {
+        pinCities = [City(countyName: county, cityName: city)]
+        savePinCitiesData()
+        getPinCitiesWeatherData()
+    }
+}
+
+extension WeatherViewController {
+    
+    // MARK: - Save & Load
+
+    func savePinCitiesData() {
+        do {
+            let data = try JSONEncoder().encode(pinCities)
+            UserDefaults.standard.set(data, forKey: "pinCities")
+        } catch {
+            print("Encoding error", error)
+        }
+    }
+    
+    func loadPinCitiesData() {
+        if let data = UserDefaults.standard.data(forKey: "pinCities") {
+            do {
+                let data = try JSONDecoder().decode([City].self, from: data)
+                self.pinCities = data
+                getPinCitiesWeatherData()
+            } catch {
+                print("Decoding error:", error)
+            }
+        }
+    }
+    
+    // MARK: - CallAPI & Organize Data
+    
     // 考量到有可能只更新一個資料的情況，所做的保留
     func getPinCitiesWeatherData() {
         weatherThreeDaysResultData = []
@@ -145,9 +474,21 @@ class WeatherViewController: UIViewController {
         
         weatherSevenDaysResultData = []
         pinCitiesSevenDaysWeatherData = []
+        
+        let dispatchGroup = DispatchGroup()
+        
         for i in 0..<pinCities.count {
-            getCityWeatherData(index: i)
+            dispatchGroup.enter()
+            dispatchGroup.enter()
+            getThreeDaysCityWeatherData(index: i, dispatchGroup: dispatchGroup)
+            getSevenDaysCityWeatherData(index: i, dispatchGroup: dispatchGroup)
         }
+        
+        dispatchGroup.notify(queue: .main) {
+            self.organizeThreeDaysResultAllData()
+            self.organizeSevenDaysResultAllData()
+        }
+        
     }
     
     func organizeThreeDaysResultAllData() {
@@ -162,24 +503,19 @@ class WeatherViewController: UIViewController {
         }
     }
     
-    func getCityWeatherData(index: Int) {
+    func getThreeDaysCityWeatherData(index: Int, dispatchGroup: DispatchGroup) {
         var dayDomain = ""
-        var weekDomain = ""
         
         for county in countiesDomain {
             if county.chineseName == pinCities[index].countyName {
                 dayDomain = county.dayDomain
-                weekDomain = county.weekDomain
             }
         }
         
         var dayRequest = URLRequest(url: URL(string: "https://opendata.cwb.gov.tw/api/v1/rest/datastore/\(dayDomain)?Authorization=\(opendataAuth)")!,timeoutInterval: Double.infinity)
         dayRequest.addValue("TS01a5ae52=0107dddfefa99779413a2b3bda072beac3f035ffa20639b0e7758f3923825255ae45862654dd0722657e7154c272801968bba8bc9f", forHTTPHeaderField: "Cookie")
-        var weekRequest = URLRequest(url: URL(string: "https://opendata.cwb.gov.tw/api/v1/rest/datastore/\(weekDomain)?Authorization=\(opendataAuth)")!,timeoutInterval: Double.infinity)
-        weekRequest.addValue("TS01a5ae52=0107dddfefa99779413a2b3bda072beac3f035ffa20639b0e7758f3923825255ae45862654dd0722657e7154c272801968bba8bc9f", forHTTPHeaderField: "Cookie")
         
         dayRequest.httpMethod = "GET"
-        weekRequest.httpMethod = "GET"
         
         let task1 = URLSession.shared.dataTask(with: dayRequest) { data, response, error in
             guard let data = data else {
@@ -191,16 +527,32 @@ class WeatherViewController: UIViewController {
                 let result = try JSONDecoder().decode(WeatherResult.self, from: data)
                 //                print(result)
                 self.weatherThreeDaysResultData.append(result)
-                
-                if index == self.pinCities.count-1 {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + self.delayInSeconds) {
-                        self.organizeThreeDaysResultAllData()
-                    }
-                }
+                dispatchGroup.leave()
+//                if index == self.pinCities.count-1 {
+//                    DispatchQueue.main.asyncAfter(deadline: .now() + self.delayInSeconds) {
+//                        self.organizeThreeDaysResultAllData()
+//                    }
+//                }
             } catch {
                 print(error)
             }
         }
+        task1.resume()
+    }
+    
+    func getSevenDaysCityWeatherData(index: Int, dispatchGroup: DispatchGroup) {
+        var weekDomain = ""
+        
+        for county in countiesDomain {
+            if county.chineseName == pinCities[index].countyName {
+                weekDomain = county.weekDomain
+            }
+        }
+        var weekRequest = URLRequest(url: URL(string: "https://opendata.cwb.gov.tw/api/v1/rest/datastore/\(weekDomain)?Authorization=\(opendataAuth)")!,timeoutInterval: Double.infinity)
+        weekRequest.addValue("TS01a5ae52=0107dddfefa99779413a2b3bda072beac3f035ffa20639b0e7758f3923825255ae45862654dd0722657e7154c272801968bba8bc9f", forHTTPHeaderField: "Cookie")
+        
+        weekRequest.httpMethod = "GET"
+        
         let task2 = URLSession.shared.dataTask(with: weekRequest) { data, response, error in
             guard let data = data else {
                 print(String(describing: error))
@@ -211,19 +563,17 @@ class WeatherViewController: UIViewController {
                 let result = try JSONDecoder().decode(WeatherResult.self, from: data)
                 //                print(result)
                 self.weatherSevenDaysResultData.append(result)
-                if index == self.pinCities.count-1 {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + self.delayInSeconds) {
-                        self.organizeSevenDaysResultAllData()
-                    }
-                }
+                dispatchGroup.leave()
+//                if index == self.pinCities.count-1 {
+//                    DispatchQueue.main.asyncAfter(deadline: .now() + self.delayInSeconds) {
+//                        self.organizeSevenDaysResultAllData()
+//                    }
+//                }
             } catch {
                 print(error)
             }
         }
-        task1.resume()
         task2.resume()
-        
-        
     }
     
     func organizeThreeDaysResultData(index: Int) {
@@ -256,11 +606,6 @@ class WeatherViewController: UIViewController {
                                                                     windSpeed: [],
                                                                     windDirection: [],
                                                                     dewPointTemperature: [])
-            //            let dateFormatter = DateFormatter()
-            //            dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-            //            let currentTime = Date()
-            //            let currentTimeString = dateFormatter.string(from: currentTime)
-            
             for i in 0..<elements.count {
                 var elementValues: [OrganizedElement] = []
                 if let time = elements[i].time {
@@ -376,8 +721,9 @@ class WeatherViewController: UIViewController {
                 let currentTime = Date()
                 
                 var key = false
-                for i in 0..<self.pinCitiesThreeDaysWeatherData[self.currentCityIndex].temperature.count-1 {
-                    if let timeString1 = self.pinCitiesThreeDaysWeatherData[self.currentCityIndex].temperature[i].dataTime,
+                for i in 0..<self.pinCitiesThreeDaysWeatherData[self.currentCityIndex].temperature.count {
+                    if i < self.pinCitiesThreeDaysWeatherData[self.currentCityIndex].temperature.count-1,
+                       let timeString1 = self.pinCitiesThreeDaysWeatherData[self.currentCityIndex].temperature[i].dataTime,
                        let timeString2 = self.pinCitiesThreeDaysWeatherData[self.currentCityIndex].temperature[i+1].dataTime,
                        let time1 = dateFormatter.date(from: timeString1),
                        let time2 = dateFormatter.date(from: timeString2),
@@ -441,7 +787,7 @@ class WeatherViewController: UIViewController {
            let cities = county[0].location {
             let cityName = pinCities[index].cityName
             var citiesIndex = 999
-            for i in 0..<cities.count {
+                for i in 0..<cities.count {
                 if cities[i].locationName == cityName {
                     citiesIndex = i
                 }
@@ -585,318 +931,6 @@ class WeatherViewController: UIViewController {
         }
     }
     
-    func checkLocationAuth() {
-        
-        let authorizationStatus: CLAuthorizationStatus
-        
-        if #available(iOS 14, *){
-            authorizationStatus = locationMgr.authorizationStatus
-        } else {
-            authorizationStatus = CLLocationManager.authorizationStatus()
-        }
-        
-        switch authorizationStatus {
-        case .notDetermined:
-            // First time launch app need to get authorize from user
-            locationMgr.requestWhenInUseAuthorization()
-            locationMgr.startUpdatingLocation()
-        case .authorizedWhenInUse:
-            locationMgr.startUpdatingLocation()
-        case .denied:
-            let alertController = UIAlertController(title: "定位權限已關閉", message: "如要變更權限，請至 設定 > 隱私權 > 定位服務 開啟", preferredStyle: .alert)
-            let okAction = UIAlertAction(title: "OK", style: .default) { action in
-                self.getPinCitiesWeatherData()
-            }
-            alertController.addAction(okAction)
-            self.present(alertController, animated: true)
-        default:
-            break
-        }
-        
-    }
-    
-    func reverseGeocoder() {
-        let geocoder = CLGeocoder()
-        let currentLocation = CLLocation(latitude: currentLat, longitude: currentLon)
-        //        print(currentLocation)
-        //        print(NSLocale.current)
-        let locale = Locale(identifier: "zh_TW")
-        geocoder.reverseGeocodeLocation(currentLocation, preferredLocale: locale) { placemarks, error -> Void in
-            if error != nil {
-                print("ReverseGeocoder Error: ", error!.localizedDescription)
-                return
-            }
-            
-            guard (placemarks?.first) != nil else {
-                return
-            }
-            
-            if let placemark = placemarks?[0],
-               let cityName = placemark.locality,
-               let countyName = placemark.subAdministrativeArea {
-                self.currentCity = cityName
-                self.currentCounty = countyName
-                self.pinCities[0] = City(countyName: countyName, cityName: cityName)
-                self.getPinCitiesWeatherData()
-            }
-        }
-    }
-    
-    func startTimer() {
-        let timer = Timer(fire: Date(), interval: 60, repeats: true) { timer in
-            self.checkTime()
-        }
-        RunLoop.current.add(timer, forMode: .default)
-        timer.tolerance = 0.1
-    }
-    
-    func checkTime() {
-        let now = Date()
-        let calendar = Calendar.current
-        let minute = calendar.component(.minute, from: now)
-        if minute == 0 {
-            // 每到整點更新天氣資訊
-        }
-    }
-    
-    @IBAction func tappedTestButton() {
-        // 停止它，否則會報錯，似乎也可以用performBatchUpdates(_:completion:)來解決
-        hourForecastCollectionView.setContentOffset(hourForecastCollectionView.contentOffset, animated: false)
-        reverseGeocoder()
-    }
-    
-}
-
-extension WeatherViewController: UICollectionViewDelegateFlowLayout {
-    
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        
-        let cellWidth: CGFloat = 70
-        let cellHeight = hourForecastCollectionView.bounds.height
-        
-        return CGSize(width: cellWidth, height: cellHeight)
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, insetForSectionAt section: Int) -> UIEdgeInsets {
-        return UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
-    }
-    
-}
-
-extension WeatherViewController: UICollectionViewDataSource {
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        if pinCitiesThreeDaysWeatherData.count == 0 {
-            return 0
-        } else {
-            return pinCitiesThreeDaysWeatherData[currentCityIndex].weatherPhenomenon.count
-        }
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "hourclimatecell", for: indexPath) as! WeatherHourClimateCollectionViewCell
-        
-        cell.timeLabel.textColor = textColor
-        cell.temperatureLabel.textColor = textColor
-        
-        let wx = pinCitiesThreeDaysWeatherData[currentCityIndex].weatherPhenomenon[indexPath.row].elementValue[0].value
-        switch wx {
-        case "晴":
-            cell.forecastImageView.image = UIImage(systemName: "sun.max.fill")?.withRenderingMode(.alwaysOriginal)
-        case "陰":
-            cell.forecastImageView.image = UIImage(systemName: "cloud.sun.fill")?.withRenderingMode(.alwaysOriginal)
-        case "多雲":
-            cell.forecastImageView.image = UIImage(systemName: "cloud.fill")?.withRenderingMode(.alwaysOriginal)
-        case "短暫雨":
-            cell.forecastImageView.image = UIImage(systemName: "cloud.rain.fill")?.withRenderingMode(.alwaysOriginal)
-        default:
-            print("字串", wx)
-        }
-        let temperature = pinCitiesThreeDaysWeatherData[currentCityIndex].temperature[indexPath.row].elementValue[0].value
-        cell.temperatureLabel.text = temperature + "°"
-        
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        
-        var timeString = ""
-        if let time = pinCitiesThreeDaysWeatherData[currentCityIndex].temperature[indexPath.row].startTime {
-            timeString = time
-        }
-        
-        if let time = pinCitiesThreeDaysWeatherData[currentCityIndex].temperature[indexPath.row].dataTime {
-            timeString = time
-        }
-        
-        if let date = dateFormatter.date(from: timeString) {
-            let calendar = Calendar.current
-            
-            let month = calendar.component(.month, from: date)
-            let day = calendar.component(.day, from: date)
-            let hour = calendar.component(.hour, from: date)
-            //            let monthInt = Int(month)
-            //            let dayInt = Int(day)
-            let hourInt = Int(hour)
-            //            print("Hour: \(hourInt)")
-            //            if indexPath.row == 0 {
-            //                cell.timeLabel.text = "NOW"
-            //            } else
-            if hourInt == 0 {
-                cell.timeLabel.text = "\(month)/\(day)\n12AM"
-            } else if hourInt == 12 {
-                cell.timeLabel.text = "\(month)/\(day)\n\(hourInt)PM"
-            } else if hourInt > 12 {
-                cell.timeLabel.text = "\(month)/\(day)\n\(hourInt-12)PM"
-            } else {
-                cell.timeLabel.text = "\(month)/\(day)\n"+String(hourInt)+"AM"
-            }
-        }
-        
-        return cell
-    }
-    
-}
-
-extension WeatherViewController: UITableViewDelegate {
-    
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return 7
-    }
-    
-    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 50
-    }
-    
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: false)
-    }
-    
-    func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
-        35
-    }
-    
-}
-
-extension WeatherViewController: UITableViewDataSource {
-    
-    //    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
-    //        let view = tableView.tableHeaderView as! WeatherDayClimateTableViewHeaderView
-    //        view.titleLabel.textColor = textColor
-    //        return view
-    //    }
-    
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        
-        let cell = tableView.dequeueReusableCell(withIdentifier: "dayclimatecell", for: indexPath) as! WeatherDayClimateTableViewCell
-        
-        cell.backgroundColor = UIColor(red: 1, green: 1, blue: 1, alpha: 0)
-        
-        cell.weekLabel.textColor = textColor
-        cell.lowTemperatureLabel.textColor = textColor
-        cell.highTemperatureLabel.textColor = textColor
-        
-        if pinCitiesSevenDaysWeatherData.count == 0 {
-            cell.weekLabel.text = "N/A"
-            cell.lowTemperatureLabel.text = "N/A"
-            cell.highTemperatureLabel.text = "N/A"
-            return cell
-        }
-        let currentDate = Date()
-        let calendar = Calendar.current
-        if let day = calendar.date(byAdding: .day, value: indexPath.row, to: currentDate) {
-            let weekday = calendar.component(.weekday, from: day)
-            if indexPath.row == 0 {
-                cell.weekLabel.text = "Today"
-            } else {
-                cell.weekLabel.text = AllWeekday.shared.allWeekday[weekday-1]
-            }
-            let (min, max) = getMinAndMaxTemperature(date: day)
-            let (sevenMin, sevenMax) = getSevenDayMinAndMaxTemperature()
-            
-            if min == 999 && max == -999 {
-                cell.lowTemperatureLabel.text = "N/A"
-                cell.highTemperatureLabel.text = "N/A"
-                cell.lineView.isHidden = true
-                cell.weatherImageView.isHidden = true
-            } else {
-                cell.lowTemperatureLabel.text = String(min)+"°"
-                cell.highTemperatureLabel.text = String(max)+"°"
-                cell.lineView.isHidden = false
-                cell.weatherImageView.isHidden = false
-            }
-            
-            let sevneMinDouble = Double(sevenMin)
-            let sevneMaxDouble = Double(sevenMax)
-            let minDouble = Double(min)
-            let maxDouble = Double(max)
-            
-            let left = (minDouble-sevneMinDouble)/(sevneMaxDouble-sevneMinDouble)
-            let right = (maxDouble-minDouble)/(sevneMaxDouble-sevneMinDouble)
-            
-            cell.lineView.widthLeft = left
-            cell.lineView.widthRight = right
-            
-            let wx = getWeatherPhenomenonForDate(date: currentDate)
-            
-            cell.weatherImageView.image = UIImage(systemName: wx)?.withRenderingMode(.alwaysOriginal)
-        } else {
-            print("day climate tableview day calculation failure")
-        }
-        return cell
-    }
-    
-    
-}
-
-extension WeatherViewController: CLLocationManagerDelegate {
-    
-    // 定位改變
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        
-        let userLocation: CLLocation = locations[0]
-        print("didUpdateLocations ", userLocation)
-//        reverseGeocoder()
-        //        getPinCitiesWeatherData()
-        
-    }
-    
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        checkLocationAuth()
-    }
-    
-    
-}
-
-extension WeatherViewController: SearchViewControllerDelegate {
-    func tappedSearchButton(county: String,city: String) {
-        pinCities = [City(countyName: county, cityName: city)]
-        savePinCitiesData()
-        getPinCitiesWeatherData()
-    }
-}
-
-extension WeatherViewController {
-    
-    func savePinCitiesData() {
-        do {
-            let data = try JSONEncoder().encode(pinCities)
-            UserDefaults.standard.set(data, forKey: "pinCities")
-        } catch {
-            print("Encoding error", error)
-        }
-    }
-    
-    func loadPinCitiesData() {
-        if let data = UserDefaults.standard.data(forKey: "pinCities") {
-            do {
-                let data = try JSONDecoder().decode([City].self, from: data)
-                self.pinCities = data
-                getPinCitiesWeatherData()
-            } catch {
-                print("Decoding error:", error)
-            }
-        }
-    }
-    
     func getMinAndMaxTemperature(date: Date) -> (Int, Int) {
         
         let calendar = Calendar.current
@@ -990,34 +1024,19 @@ extension WeatherViewController {
                 let dataMonth = calendar.component(.month, from: dataDate)
                 let dataDay = calendar.component(.day, from: dataDate)
                 let dataHour = calendar.component(.hour, from: dataDate)
-                var wx = "questionmark.square.fill"
-                if dataYear == todayYear && dataMonth == todayMonth && dataDay == todayDay && dataHour == 6 {
-                    wx = pinCitiesSevenDaysWeatherData[currentCityIndex].weatherPhenomenon[i].elementValue[0].value
-                } else {
-                    wx = pinCitiesSevenDaysWeatherData[currentCityIndex].weatherPhenomenon[0].elementValue[0].value
-                }
-                switch wx {
-                case "晴天":
-                    return "sun.fill"
-                case "晴時多雲":
-                    return "cloud.sun.fill"
-                case "多雲時晴":
-                    return "cloud.sun.fill"
-                case "陰天":
-                    return "cloud.fill"
-                case "多雲":
-                    return "cloud.fill"
-                case "多雲短暫雨":
-                    return "cloud.rain.fill"
-                case "陰時多雲短暫雨":
-                    return "cloud.sun.rain.fill"
-                case "多雲時晴短暫雨":
-                    return "cloud.sun.rain.fill"
-                default:
-                    print("未定義天氣", wx, "getWeatherPhenomenonForDate(date: Date)")
-                    return "questionmark.square.fill"
-                }
+                var wx = WeatherType.undefined
                 
+                if dataYear == todayYear && dataMonth == todayMonth && dataDay == todayDay && dataHour == 6 {
+                    if let weatherType = WeatherType(rawValue: pinCitiesSevenDaysWeatherData[currentCityIndex].weatherPhenomenon[i].elementValue[0].value) {
+                        wx = weatherType
+                    }
+                } else {
+                    // 沒資料，顯示第一筆
+                    if let weatherType = WeatherType(rawValue: pinCitiesSevenDaysWeatherData[currentCityIndex].weatherPhenomenon[0].elementValue[0].value) {
+                        wx = weatherType
+                    }
+                }
+                return wx.iconName
             }
         }
         print("something error getWeatherPhenomenonForDate(date: Date)")

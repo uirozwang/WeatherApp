@@ -19,3 +19,4 @@ struct City: Codable {
     var cityName: String
     var count: Int?
 }
+    
