@@ -61,6 +61,15 @@ class SearchViewController: UIViewController {
             }
         }
     }
+    
+    func savePinCitiesData() {
+        do {
+            let data = try JSONEncoder().encode(pinCities)
+            UserDefaults.standard.set(data, forKey: "pinCities")
+        } catch {
+            print("Encoding error", error)
+        }
+    }
 
     // MARK: - Table view data source
 
