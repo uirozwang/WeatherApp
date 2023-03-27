@@ -619,17 +619,17 @@ class CityDetail: City {
                 var wx = SevenDaysWeatherType.undefined
                 
                 if dataYear == todayYear && dataMonth == todayMonth && dataDay == todayDay && dataHour == 6 {
-                    if let weatherType = SevenDaysWeatherType(rawValue: self.sevenDaysWeatherData.weatherPhenomenon[i].elementValue[0].value) {
+                    if let weatherType = SevenDaysWeatherType(rawValue: self.sevenDaysWeatherData.weatherPhenomenon[i].elementValue[1].value) {
                         wx = weatherType
                     }
                 } else {
                     // 沒資料，顯示第一筆
-                    if let weatherType = SevenDaysWeatherType(rawValue: self.sevenDaysWeatherData.weatherPhenomenon[0].elementValue[0].value) {
+                    if let weatherType = SevenDaysWeatherType(rawValue: self.sevenDaysWeatherData.weatherPhenomenon[0].elementValue[1].value) {
                         wx = weatherType
                     }
                 }
                 if wx == .undefined {
-                    print(self.sevenDaysWeatherData.weatherPhenomenon[i].elementValue[0].value)
+                    print(self.sevenDaysWeatherData.weatherPhenomenon[i].elementValue[1].value)
                 }
                 return wx.iconName
             }

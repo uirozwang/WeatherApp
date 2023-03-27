@@ -15,6 +15,9 @@ class SearchResultTableViewCell: UITableViewCell {
     override func awakeFromNib() {
         super.awakeFromNib()
         // Initialization code
+        backgroundColor = UIColor(red: 78/255, green: 98/255, blue: 120/255, alpha: 1)
+        countyNameLabel.textColor = UIColor.white
+        cityNameLabel.textColor = UIColor.white
     }
 
     override func setSelected(_ selected: Bool, animated: Bool) {

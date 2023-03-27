@@ -8,6 +8,10 @@
 import UIKit
 import CoreLocation
 
+protocol WeatherViewControllerDelegate {
+    func tappedAddButton(city: City)
+}
+
 class WeatherViewController: UIViewController {
     
     @IBOutlet weak var cityLabel: UILabel!
@@ -19,8 +23,14 @@ class WeatherViewController: UIViewController {
     @IBOutlet weak var hourForecastCollectionView: UICollectionView!
     @IBOutlet weak var dayForecastTableView: UITableView!
     
-    @IBOutlet weak var searchButton: UIButton!
+    @IBOutlet weak var addButton: UIButton!
+    @IBOutlet weak var cancelButton: UIButton!
     @IBOutlet weak var locationButton: UIButton!
+    
+    @IBOutlet weak var toolbar: UIToolbar!
+    @IBOutlet weak var pageControll: UIPageControl!
+    
+    var delegate: WeatherViewControllerDelegate?
     
     let countiesDomain = AllCountyDomain.shared.allCityDomain
     
@@ -36,8 +46,19 @@ class WeatherViewController: UIViewController {
     // index 0 is location, other places is set by user
     var currentCityIndex: Int = 0
     var pinCity: CityDetail!
+    var tempCity: City!
+    var addState = false
+    var repeatState = false
     
     var locationMgr: CLLocationManager!
+    
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        let offsetY = scrollView.contentOffset.y
+        let distance: CGFloat = 50 // 设置行距
+        let alpha = 1 - max(min(offsetY / distance, 1.0), 0.0)
+        temparatureIntervalLabel.alpha = alpha
+//        print(alpha)
+    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -45,14 +66,25 @@ class WeatherViewController: UIViewController {
         hourForecastCollectionView.dataSource = self
         dayForecastTableView.delegate = self
         dayForecastTableView.dataSource = self
+        scrollView.delegate = self
+        
+        toolbar.isHidden = addState
+        if repeatState && addState {
+            addButton.isHidden = true
+        } else if addState {
+            addButton.isHidden = false
+        } else {
+            addButton.isHidden = true
+        }
+        cancelButton.isHidden = !addState
         
         startTimer()
         configureInterface()
+        updateInterface()
         
         if currentCityIndex == 0 {
             setLocation()
         }
-        updateInterface()
         
     }
     
@@ -71,23 +103,58 @@ class WeatherViewController: UIViewController {
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        if segue.identifier == "searchVC" {
-            let vc = segue.destination as? SearchViewController
-            vc?.delegate = self
+        if segue.identifier == "showlistvc" {
+            if let vc = segue.destination as? ListViewController,
+               let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let pageViewController = windowScene.windows.first?.rootViewController as? PageViewController {
+                vc.delegate = pageViewController
+                vc.pinCities = pageViewController.pinCities
+                vc.pinCitiesDetail = pageViewController.pinCitiesDetail
+                dismiss(animated: false)
+            }
         }
     }
     
     func updateInterface() {
-//        let pageViewController = UIApplication.shared.windows.first!.rootViewController as! PageViewController
-        // 在 iOS 15.0 中，windows 属性已被标记为过时，取而代之的是 UIWindowScene.windows 属性。UIWindowScene 是 iOS 13.0 引入的新类，它代表着一个窗口场景，通常一个应用程序只有一个窗口场景。在一个窗口场景中，可能有多个窗口对象。
-        // 这里我们使用了 UIApplication.shared.connectedScenes 方法来获取所有连接的场景，从中取出第一个 UIWindowScene 对象。然后使用 windows 属性来获取该窗口场景中的所有窗口，并从中取出第一个窗口对象。最后使用 rootViewController 属性来获取该窗口的根视图控制器，也就是你要访问的 PageViewController。注意这里我们使用了可选绑定来处理获取对象可能失败的情况。这种方式可以让你避免使用 windows 属性，使你的代码更加兼容 iOS 15.0 以及以后的版本。
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let pageViewController = windowScene.windows.first?.rootViewController as? PageViewController else {
-            fatalError("Unable to retrieve window and/or page view controller")
-        }
 
-        let city = pageViewController.pinCities[currentCityIndex]
-        pinCity = CityDetail(countyName: city.countyName, cityName: city.cityName)
+//        let city = pageViewController.pinCities[currentCityIndex]
+//        pinCity = CityDetail(countyName: city.countyName, cityName: city.cityName)
+        if addState {
+            pinCity = CityDetail(countyName: tempCity.countyName, cityName: tempCity.cityName)
+            pinCity.getThreeDaysCityWeatherData {
+                DispatchQueue.main.async {
+                    self.cityLabel.text = self.pinCity.cityName
+                    self.currentTemparatureLabel.text = self.pinCity.currentTemperature
+                    self.currentClimateLabel.text = self.pinCity.currentClimate
+                    self.temparatureIntervalLabel.text = "H: "+self.pinCity.currentMaxTemperature + "° L: " + self.pinCity.currentMinTemperature + "°"
+                    self.hourForecastCollectionView.reloadData()
+                }
+            }
+            pinCity.getSevenDaysCityWeatherData {
+                DispatchQueue.main.async {
+                    self.dayForecastTableView.reloadData()
+                }
+            }
+        } else {
+//            let pageViewController = UIApplication.shared.windows.first!.rootViewController as! PageViewController
+            // 在 iOS 15.0 中，windows 属性已被标记为过时，取而代之的是 UIWindowScene.windows 属性。UIWindowScene 是 iOS 13.0 引入的新类，它代表着一个窗口场景，通常一个应用程序只有一个窗口场景。在一个窗口场景中，可能有多个窗口对象。
+            // 这里我们使用了 UIApplication.shared.connectedScenes 方法来获取所有连接的场景，从中取出第一个 UIWindowScene 对象。然后使用 windows 属性来获取该窗口场景中的所有窗口，并从中取出第一个窗口对象。最后使用 rootViewController 属性来获取该窗口的根视图控制器，也就是你要访问的 PageViewController。注意这里我们使用了可选绑定来处理获取对象可能失败的情况。这种方式可以让你避免使用 windows 属性，使你的代码更加兼容 iOS 15.0 以及以后的版本。
+            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let pageViewController = windowScene.windows.first?.rootViewController as? PageViewController else {
+                fatalError("Unable to retrieve window and/or page view controller")
+            }
+            pinCity = pageViewController.pinCitiesDetail[currentCityIndex]
+            pageControll.numberOfPages = pageViewController.pinCities.count
+            pageControll.currentPage = currentCityIndex
+            
+            self.cityLabel.text = self.pinCity.cityName
+            self.currentTemparatureLabel.text = self.pinCity.currentTemperature
+            self.currentClimateLabel.text = self.pinCity.currentClimate
+            self.temparatureIntervalLabel.text = "H: "+self.pinCity.currentMaxTemperature + "° L: " + self.pinCity.currentMinTemperature + "°"
+            self.hourForecastCollectionView.reloadData()
+            self.dayForecastTableView.reloadData()
+        }
+        /*
         pinCity.getThreeDaysCityWeatherData {
             DispatchQueue.main.async {
                 self.cityLabel.text = self.pinCity.cityName
@@ -102,6 +169,7 @@ class WeatherViewController: UIViewController {
                 self.dayForecastTableView.reloadData()
             }
         }
+         */
         
     }
     
@@ -113,8 +181,16 @@ class WeatherViewController: UIViewController {
         currentTemparatureLabel.textColor = textColor
         currentClimateLabel.textColor = textColor
         temparatureIntervalLabel.textColor = textColor
-        searchButton.tintColor = textColor
+        addButton.tintColor = textColor
+        cancelButton.tintColor = textColor
         locationButton.tintColor = textColor
+        toolbar.tintColor = textColor
+        toolbar.barTintColor = UIColor(red: 78/255, green: 98/255, blue: 120/255, alpha: 1)
+        
+        pageControll.setCurrentPageIndicatorImage(UIImage(systemName: "location.fill"), forPage: 0)
+        
+        pageControll.setCurrentPageIndicatorImage(UIImage(systemName: "sun.fill"), forPage: 1)
+        pageControll.setIndicatorImage(UIImage(systemName: "rain.fill"), forPage: 2)
         
         dayForecastTableView.sectionHeaderTopPadding = 0
         
@@ -243,9 +319,23 @@ class WeatherViewController: UIViewController {
     
     @IBAction func tappedTestButton() {
         // 停止它，否則會報錯，似乎也可以用performBatchUpdates(_:completion:)來解決
-        hourForecastCollectionView.setContentOffset(hourForecastCollectionView.contentOffset, animated: false)
-        reverseGeocoder()
+//        hourForecastCollectionView.setContentOffset(hourForecastCollectionView.contentOffset, animated: false)
+//        reverseGeocoder()
     }
+    @IBAction func tappedListButton() {
+        dismiss(animated: true)
+        performSegue(withIdentifier: "showlistvc", sender: self)
+    }
+    @IBAction func tappedAddButton() {
+        delegate?.tappedAddButton(city: tempCity)
+    }
+    @IBAction func tappedCancelButton() {
+        dismiss(animated: true)
+    }
+    
+}
+
+extension WeatherViewController: UICollectionViewDelegate {
     
 }
 
@@ -453,12 +543,5 @@ extension WeatherViewController: CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         print(#function)
         checkLocationAuth()
-    }
-    
-}
-
-extension WeatherViewController: SearchViewControllerDelegate {
-    func tappedSearchButton(county: String,city: String) {
-//        pinCities = [City(countyName: county, cityName: city)]
     }
 }

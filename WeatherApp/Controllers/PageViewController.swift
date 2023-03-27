@@ -9,14 +9,19 @@ import UIKit
 
 class PageViewController: UIPageViewController {
     
-    var pinCities: [City] = []
+    var pinCities: [City] = [City(countyName: "新北市", cityName: "中和區"),
+                             City(countyName: "彰化縣", cityName: "員林市")]
+    var pinCitiesDetail: [CityDetail] = []
+    var threeCheck = false
+    var sevenCheck = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
         self.delegate = self
         self.dataSource = self
         loadPinCitiesData()
-        setViewControllers([createWeatherViewController(forPage: 0)], direction: .forward, animated: false)
+        print("test2")
+        getWeatherData()
     }
     
     // MARK: - Save & Load
@@ -30,6 +35,7 @@ class PageViewController: UIPageViewController {
         }
         if let data = try? JSONDecoder().decode([City].self, from: pinCitiesEncoded) as [City] {
             self.pinCities = data
+            print("test1")
         } else {
             print("Error: can't decode data from UserDefaults.")
         }
@@ -49,7 +55,43 @@ class PageViewController: UIPageViewController {
         }
     }
     
+    func savePinCitiesData() {
+        if let data = try? JSONEncoder().encode(pinCities) {
+            UserDefaults.standard.set(data, forKey: "pinCities")
+            print("save success")
+        } else {
+            print("Error: can't encode data")
+        }
+    }
+    
+    func getWeatherData() {
+        for i in 0..<pinCities.count {
+            let detail = CityDetail(countyName: pinCities[i].countyName, cityName: pinCities[i].cityName)
+            detail.getThreeDaysCityWeatherData {
+                if self.sevenCheck && i == 0 {
+                    DispatchQueue.main.async {
+                        self.setViewControllers([self.createWeatherViewController(forPage: 0)], direction: .forward, animated: false)
+                    }
+                } else {
+                    self.threeCheck = true
+                }
+            }
+            detail.getSevenDaysCityWeatherData {
+                if self.threeCheck && i == 0 {
+                    DispatchQueue.main.async {
+                        self.setViewControllers([self.createWeatherViewController(forPage: 0)], direction: .forward, animated: false)
+                    }
+                } else {
+                    self.sevenCheck = true
+                }
+            }
+            pinCitiesDetail.append(detail)
+        }
+        print(pinCities.count)
+    }
+    
     func createWeatherViewController(forPage page: Int) -> WeatherViewController {
+        print(#function)
         let weatherViewController = storyboard!.instantiateViewController(withIdentifier: "weatherviewcontroller") as! WeatherViewController
         weatherViewController.currentCityIndex = page
         return weatherViewController
@@ -76,4 +118,18 @@ extension PageViewController: UIPageViewControllerDelegate, UIPageViewController
         return nil
     }
     
+}
+
+extension PageViewController: ListViewControllerDelegate {
+    func saveData() {
+        savePinCitiesData()
+    }
+    func switchTo(page: Int) {
+        setViewControllers([createWeatherViewController(forPage: page)], direction: .forward, animated: false)
+    }
+    func updateData(pinCities: [City], pinCitiesDetail: [CityDetail]) {
+        self.pinCities = pinCities
+        self.pinCitiesDetail = pinCitiesDetail
+        savePinCitiesData()
+    }
 }
