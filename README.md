@@ -5,7 +5,7 @@ Weather是一款仿官方天氣APP
 數據來源：opendata  
 定位服務：官方定位SDK  
   
-開發環境：Xcode 14.3 beta 3 (14E5215g)  
+開發環境：Xcode 14.3 (14E222a)
 最低版本：iOS 16.2  
 模擬器機型：iPhone 14 Pro Max  
 測試機型：iPhone 13 Pro Max  
