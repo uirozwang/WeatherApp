@@ -9,8 +9,7 @@ import UIKit
 
 class PageViewController: UIPageViewController {
     
-    var pinCities: [City] = [City(countyName: "新北市", cityName: "中和區"),
-                             City(countyName: "彰化縣", cityName: "員林市")]
+    var pinCities: [City] = []
     var pinCitiesDetail: [CityDetail] = []
     var threeCheck = false
     var sevenCheck = false
@@ -29,7 +28,7 @@ class PageViewController: UIPageViewController {
         
         guard let pinCitiesEncoded = UserDefaults.standard.value(forKey: "pinCities") as? Data else {
             print("Warning: Could not load pinCities data from UserDefaults.")
-            pinCities.append(City(countyName: "台北市", cityName: "中正區"))
+            pinCities.append(City(countyName: "臺北市", cityName: "中正區"))
             return
         }
         if let data = try? JSONDecoder().decode([City].self, from: pinCitiesEncoded) as [City] {

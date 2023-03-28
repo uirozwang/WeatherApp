@@ -139,6 +139,7 @@ class WeatherViewController: UIViewController {
     
     func updateInterface() {
         if addState {
+            pinCity = CityDetail(countyName: tempCity.countyName, cityName: tempCity.cityName)
             manualUpdate()
         } else {
             guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
