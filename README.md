@@ -25,7 +25,7 @@ Weather是一款仿官方天氣APP
 ### 已知問題:    
 1. 由於opendata的API會提前移除當前天氣資料，例如5點時僅能查詢到6點以後的資料，因此目前是以顯示最新一筆資料為準  
 2. 已設定常見天氣對應的圖標，部分天氣圖標會在取得資料後補充  
-3. toolbar無法透明化，或考慮直接移除，直接留下button跟pagecontrol
+3. 新增頁面時，toolbar無法透明化，或考慮直接移除，直接留下button跟pagecontrol
 4. 定位按鈕功能暫時停用
 
 <img src="https://github.com/uirozwang/WeatherApp/blob/main/WeatherApp.gif" alt="your-gif-description" style="max-width: 50px;">
