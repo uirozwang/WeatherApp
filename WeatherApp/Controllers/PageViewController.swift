@@ -20,7 +20,6 @@ class PageViewController: UIPageViewController {
         self.delegate = self
         self.dataSource = self
         loadPinCitiesData()
-        print("test2")
         getWeatherData()
     }
     
@@ -35,21 +34,9 @@ class PageViewController: UIPageViewController {
         }
         if let data = try? JSONDecoder().decode([City].self, from: pinCitiesEncoded) as [City] {
             self.pinCities = data
-            print("test1")
         } else {
             print("Error: can't decode data from UserDefaults.")
         }
-        /*
-        if let data = UserDefaults.standard.data(forKey: "pinCities") {
-            do {
-                let data = try JSONDecoder().decode([City].self, from: data)
-                self.pinCities = data
-//                getPinCitiesWeatherData()
-            } catch {
-                print("Decoding error:", error)
-            }
-        }
-        */
         if pinCities.isEmpty {
             pinCities.append(City(countyName: "台北市", cityName: "中正區"))
         }
@@ -58,7 +45,6 @@ class PageViewController: UIPageViewController {
     func savePinCitiesData() {
         if let data = try? JSONEncoder().encode(pinCities) {
             UserDefaults.standard.set(data, forKey: "pinCities")
-            print("save success")
         } else {
             print("Error: can't encode data")
         }
@@ -87,11 +73,9 @@ class PageViewController: UIPageViewController {
             }
             pinCitiesDetail.append(detail)
         }
-        print(pinCities.count)
     }
     
     func createWeatherViewController(forPage page: Int) -> WeatherViewController {
-        print(#function)
         let weatherViewController = storyboard!.instantiateViewController(withIdentifier: "weatherviewcontroller") as! WeatherViewController
         weatherViewController.currentCityIndex = page
         return weatherViewController

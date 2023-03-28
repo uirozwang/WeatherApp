@@ -56,6 +56,15 @@ class ListViewController: UIViewController {
         searchController.searchBar.delegate = self
         searchController.searchBar.sizeToFit()
         searchController.searchBar.barTintColor = UIColor(red: 78/255, green: 98/255, blue: 120/255, alpha: 1)
+        searchController.searchBar.searchTextField.backgroundColor = UIColor(red: 0, green: 0, blue: 0, alpha: 0.3)
+        // change placeholder text color, but icon color not change
+        if #available(iOS 13.0, *) {
+            searchController.searchBar.searchTextField.attributedPlaceholder = NSAttributedString(string: "Enter Search Here", attributes: [NSAttributedString.Key.foregroundColor : UIColor.gray])
+        } else {
+            if let searchField = searchBar.value(forKey: "searchField") as? UITextField {
+                searchField.attributedPlaceholder = NSAttributedString(string: "Enter Search Here", attributes: [NSAttributedString.Key.foregroundColor: UIColor.gray])
+            }
+        }
         searchController.searchBar.tintColor = UIColor.white
         tableView.tableHeaderView = searchController.searchBar
     }
@@ -146,18 +155,17 @@ extension ListViewController: UITableViewDataSource {
                 if filteredArray[indexPath.row].countyName == pinCity.countyName &&
                     filteredArray[indexPath.row].cityName == pinCity.cityName {
                     weatherViewController.repeatState = true
-                    print("repeat")
                 }
             }
             searchController.isActive = false
             searchController.resignFirstResponder()
             weatherViewController.delegate = self
             weatherViewController.currentCityIndex = indexPath.row
-            // 目前這行是因為沒辦法處理searchVC造成崩潰的問題，也許讓reloadData延後執行，避免畫面異常
-            shouldShowSearchResults = false
-            tableView.reloadData()
-            
-//            navigationController?.pushViewController(weatherViewController, animated: true)
+            // 目前這行是因為沒辦法處理searchVC造成崩潰而決定停用，為後續畫面正常而決定顯示現有的城市，避免畫面異常，讓reloadData延後執行
+            DispatchQueue.main.asyncAfter(deadline: .now()+1.0) {
+                self.shouldShowSearchResults = false
+                self.tableView.reloadData()
+            }
             present(weatherViewController, animated: true)
         } else {
             // 回傳，並切換到指定頁面

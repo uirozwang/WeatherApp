@@ -57,7 +57,6 @@ class WeatherViewController: UIViewController {
         let distance: CGFloat = 50 // 设置行距
         let alpha = 1 - max(min(offsetY / distance, 1.0), 0.0)
         temparatureIntervalLabel.alpha = alpha
-//        print(alpha)
     }
     
     override func viewDidLoad() {
@@ -77,6 +76,11 @@ class WeatherViewController: UIViewController {
             addButton.isHidden = true
         }
         cancelButton.isHidden = !addState
+        if !addState && currentCityIndex == 0 {
+            locationButton.isHidden = false
+        } else {
+            locationButton.isHidden = true
+        }
         
         startTimer()
         configureInterface()
@@ -115,30 +119,28 @@ class WeatherViewController: UIViewController {
         }
     }
     
+    func manualUpdate() {
+        pinCity.getThreeDaysCityWeatherData {
+            DispatchQueue.main.async {
+                self.cityLabel.text = self.pinCity.cityName
+                self.currentTemparatureLabel.text = self.pinCity.currentTemperature
+                self.currentClimateLabel.text = self.pinCity.currentClimate
+                self.temparatureIntervalLabel.text = "H: "+self.pinCity.currentMaxTemperature + "° L: " + self.pinCity.currentMinTemperature + "°"
+                self.hourForecastCollectionView.reloadData()
+            }
+        }
+        pinCity.getSevenDaysCityWeatherData {
+            DispatchQueue.main.async {
+                self.dayForecastTableView.reloadData()
+            }
+        }
+        
+    }
+    
     func updateInterface() {
-
-//        let city = pageViewController.pinCities[currentCityIndex]
-//        pinCity = CityDetail(countyName: city.countyName, cityName: city.cityName)
         if addState {
-            pinCity = CityDetail(countyName: tempCity.countyName, cityName: tempCity.cityName)
-            pinCity.getThreeDaysCityWeatherData {
-                DispatchQueue.main.async {
-                    self.cityLabel.text = self.pinCity.cityName
-                    self.currentTemparatureLabel.text = self.pinCity.currentTemperature
-                    self.currentClimateLabel.text = self.pinCity.currentClimate
-                    self.temparatureIntervalLabel.text = "H: "+self.pinCity.currentMaxTemperature + "° L: " + self.pinCity.currentMinTemperature + "°"
-                    self.hourForecastCollectionView.reloadData()
-                }
-            }
-            pinCity.getSevenDaysCityWeatherData {
-                DispatchQueue.main.async {
-                    self.dayForecastTableView.reloadData()
-                }
-            }
+            manualUpdate()
         } else {
-//            let pageViewController = UIApplication.shared.windows.first!.rootViewController as! PageViewController
-            // 在 iOS 15.0 中，windows 属性已被标记为过时，取而代之的是 UIWindowScene.windows 属性。UIWindowScene 是 iOS 13.0 引入的新类，它代表着一个窗口场景，通常一个应用程序只有一个窗口场景。在一个窗口场景中，可能有多个窗口对象。
-            // 这里我们使用了 UIApplication.shared.connectedScenes 方法来获取所有连接的场景，从中取出第一个 UIWindowScene 对象。然后使用 windows 属性来获取该窗口场景中的所有窗口，并从中取出第一个窗口对象。最后使用 rootViewController 属性来获取该窗口的根视图控制器，也就是你要访问的 PageViewController。注意这里我们使用了可选绑定来处理获取对象可能失败的情况。这种方式可以让你避免使用 windows 属性，使你的代码更加兼容 iOS 15.0 以及以后的版本。
             guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                   let pageViewController = windowScene.windows.first?.rootViewController as? PageViewController else {
                 fatalError("Unable to retrieve window and/or page view controller")
@@ -154,23 +156,6 @@ class WeatherViewController: UIViewController {
             self.hourForecastCollectionView.reloadData()
             self.dayForecastTableView.reloadData()
         }
-        /*
-        pinCity.getThreeDaysCityWeatherData {
-            DispatchQueue.main.async {
-                self.cityLabel.text = self.pinCity.cityName
-                self.currentTemparatureLabel.text = self.pinCity.currentTemperature
-                self.currentClimateLabel.text = self.pinCity.currentClimate
-                self.temparatureIntervalLabel.text = "H: "+self.pinCity.currentMaxTemperature + "° L: " + self.pinCity.currentMinTemperature + "°"
-                self.hourForecastCollectionView.reloadData()
-            }
-        }
-        pinCity.getSevenDaysCityWeatherData {
-            DispatchQueue.main.async {
-                self.dayForecastTableView.reloadData()
-            }
-        }
-         */
-        
     }
     
     func configureInterface() {
@@ -188,7 +173,6 @@ class WeatherViewController: UIViewController {
         toolbar.barTintColor = UIColor(red: 78/255, green: 98/255, blue: 120/255, alpha: 1)
         
         pageControll.setCurrentPageIndicatorImage(UIImage(systemName: "location.fill"), forPage: 0)
-        
         pageControll.setCurrentPageIndicatorImage(UIImage(systemName: "sun.fill"), forPage: 1)
         pageControll.setIndicatorImage(UIImage(systemName: "rain.fill"), forPage: 2)
         
@@ -220,8 +204,6 @@ class WeatherViewController: UIViewController {
         let currentTime = CurrentTime(year: year!, month: month!, day: day!, hour: hour!, min: min!)
         return currentTime
     }
-    
-    
     
     func checkLocationAuth() {
         
@@ -270,7 +252,6 @@ class WeatherViewController: UIViewController {
         default:
             break
         }
-        
     }
     
     func reverseGeocoder() {
@@ -294,8 +275,8 @@ class WeatherViewController: UIViewController {
                let countyName = placemark.subAdministrativeArea {
                 self.currentCity = cityName
                 self.currentCounty = countyName
-//                self.pinCity = City(countyName: countyName, cityName: cityName)
-                self.updateInterface()
+                self.pinCity = CityDetail(countyName: countyName, cityName: cityName)
+                self.manualUpdate()
             }
         }
     }
@@ -311,16 +292,18 @@ class WeatherViewController: UIViewController {
     func checkTime() {
         let now = Date()
         let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: now)
         let minute = calendar.component(.minute, from: now)
-        if minute == 0 {
-            // 每到整點更新天氣資訊
+        // 在3的倍數的整點，主動更新天氣資訊
+        if hour%3 == 0 && minute == 0 {
+            manualUpdate()
         }
     }
-    
+    // MARK: - Actions
     @IBAction func tappedTestButton() {
         // 停止它，否則會報錯，似乎也可以用performBatchUpdates(_:completion:)來解決
-//        hourForecastCollectionView.setContentOffset(hourForecastCollectionView.contentOffset, animated: false)
-//        reverseGeocoder()
+        hourForecastCollectionView.setContentOffset(hourForecastCollectionView.contentOffset, animated: false)
+        reverseGeocoder()
     }
     @IBAction func tappedListButton() {
         dismiss(animated: true)
@@ -334,11 +317,7 @@ class WeatherViewController: UIViewController {
     }
     
 }
-
-extension WeatherViewController: UICollectionViewDelegate {
-    
-}
-
+// MARK: - CollectionView
 extension WeatherViewController: UICollectionViewDelegateFlowLayout {
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
@@ -429,7 +408,7 @@ extension WeatherViewController: UICollectionViewDataSource {
         return cell
     }
 }
-
+// MARK: - TableView
 extension WeatherViewController: UITableViewDelegate {
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -452,11 +431,11 @@ extension WeatherViewController: UITableViewDelegate {
 
 extension WeatherViewController: UITableViewDataSource {
     
-    //    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
-    //        let view = tableView.tableHeaderView as! WeatherDayClimateTableViewHeaderView
-    //        view.titleLabel.textColor = textColor
-    //        return view
-    //    }
+//    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+//        let view = tableView.tableHeaderView as! WeatherDayClimateTableViewHeaderView
+//        view.titleLabel.textColor = textColor
+//        return view
+//    }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
@@ -518,7 +497,7 @@ extension WeatherViewController: UITableViewDataSource {
     }
     
 }
-
+// MARK: - Location
 extension WeatherViewController: CLLocationManagerDelegate {
     
     func setLocation() {
@@ -532,16 +511,13 @@ extension WeatherViewController: CLLocationManagerDelegate {
     
     // 定位改變
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        
         let userLocation: CLLocation = locations[0]
         print("didUpdateLocations ", userLocation)
-//        reverseGeocoder()
-        //        getPinCitiesWeatherData()
-        
+        reverseGeocoder()
+        manualUpdate()
     }
     
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        print(#function)
         checkLocationAuth()
     }
 }

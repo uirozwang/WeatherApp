@@ -227,10 +227,10 @@
                                                             <autoresizingMask key="autoresizingMask"/>
                                                             <subviews>
                                                                 <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="DSp-hf-Z1u">
-                                                                    <rect key="frame" x="15" y="13" width="75" height="18"/>
+                                                                    <rect key="frame" x="15" y="13" width="80" height="18"/>
                                                                     <constraints>
                                                                         <constraint firstAttribute="width" relation="greaterThanOrEqual" constant="90" id="bK4-Or-22b">
-                                                                            <variation key="heightClass=regular-widthClass=compact" constant="75"/>
+                                                                            <variation key="heightClass=regular-widthClass=compact" constant="80"/>
                                                                         </constraint>
                                                                     </constraints>
                                                                     <fontDescription key="fontDescription" type="system" pointSize="17"/>
@@ -241,7 +241,7 @@
                                                                     </variation>
                                                                 </label>
                                                                 <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="bbB-8T-WXU">
-                                                                    <rect key="frame" x="100" y="2" width="40" height="40"/>
+                                                                    <rect key="frame" x="105" y="2" width="40" height="40"/>
                                                                     <constraints>
                                                                         <constraint firstAttribute="height" constant="40" id="MGI-0V-Wd8"/>
                                                                         <constraint firstAttribute="width" constant="40" id="aJT-bp-kcy"/>
@@ -532,7 +532,7 @@
         </scene>
     </scenes>
     <inferredMetricsTieBreakers>
-        <segue reference="1S8-hu-x7H"/>
+        <segue reference="GM1-sR-dyx"/>
     </inferredMetricsTieBreakers>
     <resources>
         <image name="calendar" catalog="system" width="128" height="107"/>
