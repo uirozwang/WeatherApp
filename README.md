@@ -19,13 +19,11 @@ Weather是一款仿官方天氣APP
 6. 側滑切換城市天氣頁面    
 
 ### 即將更新：  
-2. 搜尋功能優化，當前演算法排序不良  
-3. 其餘官方APP有提供之天氣資料方塊，例如紫外線指數、體感溫度等  
+1. 搜尋功能優化，當前演算法排序不良  
+2. 其餘官方APP有提供之天氣資料方塊，例如紫外線指數、體感溫度等  
   
 ### 已知問題:    
 1. 由於opendata的API會提前移除當前天氣資料，例如5點時僅能查詢到6點以後的資料，因此目前是以顯示最新一筆資料為準  
-2. 已設定常見天氣對應的圖標，部分天氣圖標會在取得資料後補充  
-3. 新增頁面時，toolbar無法透明化，或考慮直接移除，直接留下button跟pagecontrol
-4. 定位按鈕功能暫時停用
+2. 新增頁面時，toolbar無法透明化，或考慮直接移除，直接留下button跟pagecontrol    
 
 <img src="https://github.com/uirozwang/WeatherApp/blob/main/WeatherApp.gif" alt="your-gif-description" style="max-width: 50px;">
