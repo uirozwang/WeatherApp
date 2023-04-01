@@ -161,7 +161,7 @@ extension ListViewController: UITableViewDataSource {
             searchController.resignFirstResponder()
             weatherViewController.delegate = self
             weatherViewController.currentCityIndex = indexPath.row
-            // 目前這行是因為沒辦法處理searchVC造成崩潰而決定停用，為後續畫面正常而決定顯示現有的城市，避免畫面異常，讓reloadData延後執行
+            // 目前這行是因為沒辦法處理searchVC造成崩潰，而決定停用該VC，為後續畫面正常而決定顯示現有的城市，避免畫面異常，讓reloadData延後執行
             DispatchQueue.main.asyncAfter(deadline: .now()+1.0) {
                 self.shouldShowSearchResults = false
                 self.tableView.reloadData()

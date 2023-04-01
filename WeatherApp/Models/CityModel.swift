@@ -600,15 +600,14 @@ class CityDetail: City {
     
     func getWeatherPhenomenonForDate(date: Date) -> String {
         
-        let todayDate = Date()
         let calendar = Calendar.current
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         
-        let todayYear = calendar.component(.year, from: todayDate)
-        let todayMonth = calendar.component(.month, from: todayDate)
-        let todayDay = calendar.component(.day, from: todayDate)
-        
+        let todayYear = calendar.component(.year, from: date)
+        let todayMonth = calendar.component(.month, from: date)
+        let todayDay = calendar.component(.day, from: date)
+        var wx = WeatherType.undefined
         for i in 0..<self.sevenDaysWeatherData.weatherPhenomenon.count {
             if let timeString = self.sevenDaysWeatherData.weatherPhenomenon[i].startTime,
                let dataDate = dateFormatter.date(from: timeString) {
@@ -616,26 +615,24 @@ class CityDetail: City {
                 let dataMonth = calendar.component(.month, from: dataDate)
                 let dataDay = calendar.component(.day, from: dataDate)
                 let dataHour = calendar.component(.hour, from: dataDate)
-                var wx = SevenDaysWeatherType.undefined
-                
                 if dataYear == todayYear && dataMonth == todayMonth && dataDay == todayDay && dataHour == 6 {
-                    if let weatherType = SevenDaysWeatherType(rawValue: self.sevenDaysWeatherData.weatherPhenomenon[i].elementValue[1].value) {
+                    if let weatherType = WeatherType(rawValue: self.sevenDaysWeatherData.weatherPhenomenon[i].elementValue[1].value) {
                         wx = weatherType
+                        return wx.iconName
                     }
                 } else {
-                    // 沒資料，顯示第一筆
-                    if let weatherType = SevenDaysWeatherType(rawValue: self.sevenDaysWeatherData.weatherPhenomenon[0].elementValue[1].value) {
-                        wx = weatherType
-                    }
                 }
-                if wx == .undefined {
-                    print(self.sevenDaysWeatherData.weatherPhenomenon[i].elementValue[1].value)
-                }
-                return wx.iconName
             }
         }
-        print("something error getWeatherPhenomenonForDate(date: Date)")
-        return "questionmark.square.fill"
+//        if wx == .undefined {
+//            print(date)
+//            print("wx == .undefined" ,self.sevenDaysWeatherData.weatherPhenomenon[0].elementValue[1].value)
+//        }
+        // 沒資料，顯示第一筆
+        if let weatherType = WeatherType(rawValue: self.sevenDaysWeatherData.weatherPhenomenon[0].elementValue[1].value) {
+            wx = weatherType
+        }
+        return wx.iconName
     }
     
 }

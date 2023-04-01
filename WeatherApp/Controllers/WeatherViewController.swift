@@ -28,7 +28,7 @@ class WeatherViewController: UIViewController {
     @IBOutlet weak var locationButton: UIButton!
     
     @IBOutlet weak var toolbar: UIToolbar!
-    @IBOutlet weak var pageControll: UIPageControl!
+    @IBOutlet weak var pageControl: UIPageControl!
     
     var delegate: WeatherViewControllerDelegate?
     
@@ -45,7 +45,7 @@ class WeatherViewController: UIViewController {
     
     // index 0 is location, other places is set by user
     var currentCityIndex: Int = 0
-    var pinCity: CityDetail!
+    var pinCityDetail: CityDetail!
     var tempCity: City!
     var addState = false
     var repeatState = false
@@ -53,6 +53,14 @@ class WeatherViewController: UIViewController {
     var locationMgr: CLLocationManager!
     
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        
+        if scrollView.isDescendant(of: self.pageControl) {
+                return
+            }
+        // 更新 pagecontrol 的當前頁面
+        let currentPage = Int(scrollView.contentOffset.x / scrollView.frame.size.width)
+        self.pageControl.currentPage = currentPage
+        
         let offsetY = scrollView.contentOffset.y
         let distance: CGFloat = 50 // 设置行距
         let alpha = 1 - max(min(offsetY / distance, 1.0), 0.0)
@@ -86,7 +94,7 @@ class WeatherViewController: UIViewController {
         configureInterface()
         updateInterface()
         
-        if currentCityIndex == 0 {
+        if currentCityIndex == 0 && !addState {
             setLocation()
         }
         
@@ -108,28 +116,31 @@ class WeatherViewController: UIViewController {
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "showlistvc" {
-            if let vc = segue.destination as? ListViewController,
+            if let listViewController = segue.destination as? ListViewController,
                let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                let pageViewController = windowScene.windows.first?.rootViewController as? PageViewController {
-                vc.delegate = pageViewController
-                vc.pinCities = pageViewController.pinCities
-                vc.pinCitiesDetail = pageViewController.pinCitiesDetail
+                listViewController.delegate = pageViewController
+                listViewController.pinCities = pageViewController.pinCities
+                listViewController.pinCities[0] = City(countyName: self.pinCityDetail.countyName,
+                                                       cityName: self.pinCityDetail.cityName)
+                listViewController.pinCitiesDetail = pageViewController.pinCitiesDetail
+                listViewController.pinCitiesDetail[0] = self.pinCityDetail
                 dismiss(animated: false)
             }
         }
     }
     
     func manualUpdate() {
-        pinCity.getThreeDaysCityWeatherData {
+        pinCityDetail.getThreeDaysCityWeatherData {
             DispatchQueue.main.async {
-                self.cityLabel.text = self.pinCity.cityName
-                self.currentTemparatureLabel.text = self.pinCity.currentTemperature
-                self.currentClimateLabel.text = self.pinCity.currentClimate
-                self.temparatureIntervalLabel.text = "H: "+self.pinCity.currentMaxTemperature + "° L: " + self.pinCity.currentMinTemperature + "°"
+                self.cityLabel.text = self.pinCityDetail.cityName
+                self.currentTemparatureLabel.text = self.pinCityDetail.currentTemperature
+                self.currentClimateLabel.text = self.pinCityDetail.currentClimate
+                self.temparatureIntervalLabel.text = "H: "+self.pinCityDetail.currentMaxTemperature + "° L: " + self.pinCityDetail.currentMinTemperature + "°"
                 self.hourForecastCollectionView.reloadData()
             }
         }
-        pinCity.getSevenDaysCityWeatherData {
+        pinCityDetail.getSevenDaysCityWeatherData {
             DispatchQueue.main.async {
                 self.dayForecastTableView.reloadData()
             }
@@ -139,21 +150,21 @@ class WeatherViewController: UIViewController {
     
     func updateInterface() {
         if addState {
-            pinCity = CityDetail(countyName: tempCity.countyName, cityName: tempCity.cityName)
+            pinCityDetail = CityDetail(countyName: tempCity.countyName, cityName: tempCity.cityName)
             manualUpdate()
         } else {
             guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                   let pageViewController = windowScene.windows.first?.rootViewController as? PageViewController else {
                 fatalError("Unable to retrieve window and/or page view controller")
             }
-            pinCity = pageViewController.pinCitiesDetail[currentCityIndex]
-            pageControll.numberOfPages = pageViewController.pinCities.count
-            pageControll.currentPage = currentCityIndex
+            pinCityDetail = pageViewController.pinCitiesDetail[currentCityIndex]
+            pageControl.numberOfPages = pageViewController.pinCities.count
+            pageControl.currentPage = currentCityIndex
             
-            self.cityLabel.text = self.pinCity.cityName
-            self.currentTemparatureLabel.text = self.pinCity.currentTemperature
-            self.currentClimateLabel.text = self.pinCity.currentClimate
-            self.temparatureIntervalLabel.text = "H: "+self.pinCity.currentMaxTemperature + "° L: " + self.pinCity.currentMinTemperature + "°"
+            self.cityLabel.text = self.pinCityDetail.cityName
+            self.currentTemparatureLabel.text = self.pinCityDetail.currentTemperature
+            self.currentClimateLabel.text = self.pinCityDetail.currentClimate
+            self.temparatureIntervalLabel.text = "H: "+self.pinCityDetail.currentMaxTemperature + "° L: " + self.pinCityDetail.currentMinTemperature + "°"
             self.hourForecastCollectionView.reloadData()
             self.dayForecastTableView.reloadData()
         }
@@ -173,13 +184,8 @@ class WeatherViewController: UIViewController {
         toolbar.tintColor = textColor
         toolbar.barTintColor = UIColor(red: 78/255, green: 98/255, blue: 120/255, alpha: 1)
         
-        pageControll.setCurrentPageIndicatorImage(UIImage(systemName: "location.fill"), forPage: 0)
-        pageControll.setCurrentPageIndicatorImage(UIImage(systemName: "sun.fill"), forPage: 1)
-        pageControll.setIndicatorImage(UIImage(systemName: "rain.fill"), forPage: 2)
-        
-        dayForecastTableView.sectionHeaderTopPadding = 0
-        
-        hourForecastCollectionView.frame.size.width = scrollView.frame.size.width-40
+        pageControl.setCurrentPageIndicatorImage(UIImage(systemName: "location.fill"), forPage: 0)
+        pageControl.setIndicatorImage(UIImage(systemName: "location.fill"), forPage: 0)
         
         hourForecastCollectionView.backgroundColor = UIColor(red: 0, green: 0, blue: 0, alpha: 0.1)
         dayForecastTableView.backgroundColor = UIColor(red: 0, green: 0, blue: 0, alpha: 0.1)
@@ -225,23 +231,19 @@ class WeatherViewController: UIViewController {
                 updateInterface()
             }
             locationAuth = false
-            print("notDetermined")
         case .authorizedWhenInUse:
             locationMgr.startUpdatingLocation()
             if locationAuth != true {
                 updateInterface()
             }
             locationAuth = true
-            print("authorizedWhenInUsed")
         case .authorizedAlways:
             locationMgr.startUpdatingLocation()
             if locationAuth != true {
                 updateInterface()
             }
             locationAuth = true
-            print("authorizedAlways")
         case .denied:
-            print("denied")
             if locationAuth != false {
                 updateInterface()
             }
@@ -270,13 +272,12 @@ class WeatherViewController: UIViewController {
             guard (placemarks?.first) != nil else {
                 return
             }
-            
             if let placemark = placemarks?[0],
                let cityName = placemark.locality,
                let countyName = placemark.subAdministrativeArea {
                 self.currentCity = cityName
                 self.currentCounty = countyName
-                self.pinCity = CityDetail(countyName: countyName, cityName: cityName)
+                self.pinCityDetail = CityDetail(countyName: countyName, cityName: cityName)
                 self.manualUpdate()
             }
         }
@@ -321,26 +322,26 @@ class WeatherViewController: UIViewController {
 // MARK: - CollectionView
 extension WeatherViewController: UICollectionViewDelegateFlowLayout {
     
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        
-        let cellWidth: CGFloat = 70
-        let cellHeight = hourForecastCollectionView.bounds.height
-        
-        return CGSize(width: cellWidth, height: cellHeight)
-    }
+//    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+//
+//        let cellWidth: CGFloat = 70
+//        let cellHeight = hourForecastCollectionView.bounds.height
+//
+//        return CGSize(width: cellWidth, height: cellHeight)
+//    }
     
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, insetForSectionAt section: Int) -> UIEdgeInsets {
-        return UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
-    }
+//    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, insetForSectionAt section: Int) -> UIEdgeInsets {
+//        return UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+//    }
     
 }
 
 extension WeatherViewController: UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        if pinCity.threeDaysWeatherData.weatherPhenomenon.count == 0 {
+        if pinCityDetail.threeDaysWeatherData.weatherPhenomenon.count == 0 {
             return 0
         } else {
-            return pinCity.threeDaysWeatherData.weatherPhenomenon.count
+            return pinCityDetail.threeDaysWeatherData.weatherPhenomenon.count
         }
     }
     
@@ -351,35 +352,24 @@ extension WeatherViewController: UICollectionViewDataSource {
         cell.timeLabel.textColor = textColor
         cell.temperatureLabel.textColor = textColor
         
-        let wx = pinCity.threeDaysWeatherData.weatherPhenomenon[indexPath.row].elementValue[0].value
-        switch wx {
-        case "晴":
-            cell.forecastImageView.image = UIImage(systemName: "sun.max.fill")?.withRenderingMode(.alwaysOriginal)
-        case "陰":
-            cell.forecastImageView.image = UIImage(systemName: "cloud.sun.fill")?.withRenderingMode(.alwaysOriginal)
-        case "多雲":
-            cell.forecastImageView.image = UIImage(systemName: "cloud.fill")?.withRenderingMode(.alwaysOriginal)
-        case "短暫雨":
-            cell.forecastImageView.image = UIImage(systemName: "cloud.rain.fill")?.withRenderingMode(.alwaysOriginal)
-        case "短暫陣雨":
-            cell.forecastImageView.image = UIImage(systemName: "cloud.rain.fill")?.withRenderingMode(.alwaysOriginal)
-        case "短暫陣雨或雷雨":
-            cell.forecastImageView.image = UIImage(systemName: "cloud.bolt.rain.fill")?.withRenderingMode(.alwaysOriginal)
-        default:
-            print("字串", wx)
+        var wx = WeatherType.undefined
+        if let weatherType = WeatherType(rawValue: pinCityDetail.threeDaysWeatherData.weatherPhenomenon[indexPath.row].elementValue[1].value) {
+            wx = weatherType
         }
-        let temperature = pinCity.threeDaysWeatherData.temperature[indexPath.row].elementValue[0].value
+        cell.forecastImageView.image = UIImage(systemName: wx.iconName)?.withRenderingMode(.alwaysOriginal)
+        
+        let temperature = pinCityDetail.threeDaysWeatherData.temperature[indexPath.row].elementValue[0].value
         cell.temperatureLabel.text = temperature + "°"
         
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         
         var timeString = ""
-        if let time = pinCity.threeDaysWeatherData.temperature[indexPath.row].startTime {
+        if let time = pinCityDetail.threeDaysWeatherData.temperature[indexPath.row].startTime {
             timeString = time
         }
         
-        if let time = pinCity.threeDaysWeatherData.temperature[indexPath.row].dataTime {
+        if let time = pinCityDetail.threeDaysWeatherData.temperature[indexPath.row].dataTime {
             timeString = time
         }
         
@@ -447,7 +437,7 @@ extension WeatherViewController: UITableViewDataSource {
         cell.weekLabel.textColor = textColor
         cell.lowTemperatureLabel.textColor = textColor
         cell.highTemperatureLabel.textColor = textColor
-        if pinCity.sevenDaysWeatherData.minTemperature.count == 0 {
+        if pinCityDetail.sevenDaysWeatherData.minTemperature.count == 0 {
             cell.weekLabel.text = "N/A"
             cell.lowTemperatureLabel.text = "N/A"
             cell.highTemperatureLabel.text = "N/A"
@@ -462,8 +452,8 @@ extension WeatherViewController: UITableViewDataSource {
             } else {
                 cell.weekLabel.text = AllWeekday.shared.allWeekday[weekday-1]
             }
-            let (min, max) = pinCity.getMinAndMaxTemperature(date: day)
-            let (sevenMin, sevenMax) = pinCity.getSevenDayMinAndMaxTemperature()
+            let (min, max) = pinCityDetail.getMinAndMaxTemperature(date: day)
+            let (sevenMin, sevenMax) = pinCityDetail.getSevenDayMinAndMaxTemperature()
             
             if min == 999 && max == -999 {
                 cell.lowTemperatureLabel.text = "N/A"
@@ -487,8 +477,8 @@ extension WeatherViewController: UITableViewDataSource {
             
             cell.lineView.widthLeft = left
             cell.lineView.widthRight = right
-            
-            let wx = pinCity.getWeatherPhenomenonForDate(date: currentDate)
+//            print(day)
+            let wx = pinCityDetail.getWeatherPhenomenonForDate(date: day)
             
             cell.weatherImageView.image = UIImage(systemName: wx)?.withRenderingMode(.alwaysOriginal)
         } else {
@@ -512,8 +502,8 @@ extension WeatherViewController: CLLocationManagerDelegate {
     
     // 定位改變
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        let userLocation: CLLocation = locations[0]
-        print("didUpdateLocations ", userLocation)
+//        let userLocation: CLLocation = locations[0]
+//        print("didUpdateLocations ", userLocation)
         reverseGeocoder()
         manualUpdate()
     }

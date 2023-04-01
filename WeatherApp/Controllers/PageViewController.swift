@@ -37,7 +37,7 @@ class PageViewController: UIPageViewController {
             print("Error: can't decode data from UserDefaults.")
         }
         if pinCities.isEmpty {
-            pinCities.append(City(countyName: "台北市", cityName: "中正區"))
+            pinCities.append(City(countyName: "臺北市", cityName: "中正區"))
         }
     }
     

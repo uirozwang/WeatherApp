@@ -41,7 +41,7 @@ enum SevenDaysWeatherType: String {
     }
 }
 */
-enum SevenDaysWeatherType: String {
+enum WeatherType: String {
     case clear = "01"
     case mostlyClear = "02"
     case partlyClear = "03"
@@ -88,7 +88,7 @@ enum SevenDaysWeatherType: String {
     var iconName: String {
         switch self {
         case .clear:
-            return "sun.fill"
+            return "sun.max.fill"
         case .mostlyClear, .partlyClear, .partlyCloudy, .clearWithFog, .mostlyClearWithFog, .partlyClearWithFog, .partlyCloudyWithFog:
             return "cloud.sun.fill"
         case .mostlyCloudy, .mostlyCloudy2, .cloudy, .cloudyWithFog:
