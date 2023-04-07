@@ -257,13 +257,12 @@ class WeatherViewController: UIViewController {
         }
     }
     
-    func reverseGeocoder() {
+    func reverseGeocoder(location: CLLocation) {
         let geocoder = CLGeocoder()
-        let currentLocation = CLLocation(latitude: currentLat, longitude: currentLon)
-        //        print(currentLocation)
+        //        print(location)
         //        print(NSLocale.current)
         let locale = Locale(identifier: "zh_TW")
-        geocoder.reverseGeocodeLocation(currentLocation, preferredLocale: locale) { placemarks, error -> Void in
+        geocoder.reverseGeocodeLocation(location, preferredLocale: locale) { placemarks, error -> Void in
             if error != nil {
                 print("ReverseGeocoder Error: ", error!.localizedDescription)
                 return
@@ -305,7 +304,8 @@ class WeatherViewController: UIViewController {
     @IBAction func tappedTestButton() {
         // 停止它，否則會報錯，似乎也可以用performBatchUpdates(_:completion:)來解決
         hourForecastCollectionView.setContentOffset(hourForecastCollectionView.contentOffset, animated: false)
-        reverseGeocoder()
+        let defaultLocation = CLLocation(latitude: currentLat, longitude: currentLon)
+        reverseGeocoder(location: defaultLocation)
     }
     @IBAction func tappedListButton() {
         dismiss(animated: true)
@@ -502,9 +502,9 @@ extension WeatherViewController: CLLocationManagerDelegate {
     
     // 定位改變
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-//        let userLocation: CLLocation = locations[0]
+        let currentLocation: CLLocation = locations[0]
 //        print("didUpdateLocations ", userLocation)
-        reverseGeocoder()
+        reverseGeocoder(location: currentLocation)
         manualUpdate()
     }
     
