@@ -634,5 +634,85 @@ class CityDetail: City {
         }
         return wx.iconName
     }
+    /// UVI：UV指數、量級描述，WD：方位、鐘點方向，WS：風速、蒲福風級，AT：體感溫度、單位，RH：相對濕度、單位，CI：CI指數、描述，Td：露點溫度、單位
+    func getCurrentSpecificData(of type: String, date: Date) -> (String, String?) {
+//        let calendar = Calendar.current
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        // 因為UVI只有七天版，因此分開處理
+        switch type {
+        case "UVI":
+            for i in 0..<self.sevenDaysWeatherData.ultravioletIndex.count {
+                if let startTime = self.sevenDaysWeatherData.ultravioletIndex[i].startTime,
+                   let endTime = self.sevenDaysWeatherData.ultravioletIndex[i].endTime,
+                   let startDate = dateFormatter.date(from: startTime),
+                   let endDate = dateFormatter.date(from: endTime) {
+                    let isBetween = date >= startDate && date <= endDate
+                    if isBetween {
+                        return (self.sevenDaysWeatherData.ultravioletIndex[i].elementValue[0].value, self.sevenDaysWeatherData.ultravioletIndex[i].elementValue[1].value)
+                    }
+                }
+            }
+//            print(self.sevenDaysWeatherData.ultravioletIndex.count)
+            // 時間對不上則顯示第一筆
+            if self.sevenDaysWeatherData.ultravioletIndex.isEmpty {
+                return ("N/A", "N/A")
+            } else {
+                return (self.sevenDaysWeatherData.ultravioletIndex[0].elementValue[0].value, self.sevenDaysWeatherData.ultravioletIndex[0].elementValue[1].value)
+            }
+        case "WD", "WS", "AT", "RH", "CI", "Td":
+            for i in 0..<self.threeDaysWeatherData.windDirection.count {
+                if let startTime = self.threeDaysWeatherData.windDirection[i].startTime,
+                   let endTime = self.threeDaysWeatherData.windDirection[i].endTime,
+                   let startDate = dateFormatter.date(from: startTime),
+                   let endDate = dateFormatter.date(from: endTime) {
+                    let isBetween = date >= startDate && date <= endDate
+                    if isBetween {
+                        switch type {
+                        case "WD":
+                            return (self.threeDaysWeatherData.windDirection[i].elementValue[0].measures, self.threeDaysWeatherData.windDirection[i].elementValue[0].measures)
+                        case "WS":
+                            return (self.threeDaysWeatherData.windSpeed[i].elementValue[0].value, self.threeDaysWeatherData.windSpeed[i].elementValue[1].value)
+                        case "AT":
+                            return (self.threeDaysWeatherData.apparentTemperature[i].elementValue[0].value, self.threeDaysWeatherData.apparentTemperature[i].elementValue[0].measures)
+                        case "RH":
+                            return (self.threeDaysWeatherData.relativeHumidity[i].elementValue[0].value, self.threeDaysWeatherData.relativeHumidity[i].elementValue[0].measures)
+                        case "CI":
+                            return (self.threeDaysWeatherData.comfortIndex[i].elementValue[0].value, self.threeDaysWeatherData.comfortIndex[i].elementValue[1].value)
+                        case "Td":
+                            return (self.threeDaysWeatherData.dewPointTemperature[i].elementValue[0].value, self.threeDaysWeatherData.dewPointTemperature[i].elementValue[0].measures)
+                        default:
+                            break
+                        }
+                    }
+                }
+            }
+            // 時間對不上則顯示第一筆
+            if threeDaysWeatherData.windDirection.isEmpty {
+                return ("N/A", "N/A")
+            } else {
+                switch type {
+                case "WD":
+                    return (self.threeDaysWeatherData.windDirection[0].elementValue[0].measures, self.threeDaysWeatherData.windDirection[0].elementValue[0].measures)
+                case "WS":
+                    return (self.threeDaysWeatherData.windSpeed[0].elementValue[0].value, self.threeDaysWeatherData.windSpeed[0].elementValue[1].value)
+                case "AT":
+                    return (self.threeDaysWeatherData.apparentTemperature[0].elementValue[0].value, self.threeDaysWeatherData.apparentTemperature[0].elementValue[0].measures)
+                case "RH":
+                    return (self.threeDaysWeatherData.relativeHumidity[0].elementValue[0].value, self.threeDaysWeatherData.relativeHumidity[0].elementValue[0].measures)
+                case "CI":
+                    return (self.threeDaysWeatherData.comfortIndex[0].elementValue[0].value, self.threeDaysWeatherData.comfortIndex[0].elementValue[1].value)
+                case "Td":
+                    return (self.threeDaysWeatherData.dewPointTemperature[0].elementValue[0].value, self.threeDaysWeatherData.dewPointTemperature[0].elementValue[0].measures)
+                default:
+                    break
+                }
+            }
+        default:
+            print("get current specific data error, type is ", type)
+            return ("error", "error")
+        }
+        return ("error", "error")
+    }
     
 }

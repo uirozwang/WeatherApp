@@ -23,6 +23,11 @@ class WeatherViewController: UIViewController {
     @IBOutlet weak var hourForecastCollectionView: UICollectionView!
     @IBOutlet weak var dayForecastTableView: UITableView!
     
+    @IBOutlet weak var UVIView: UVIndexView!
+    @IBOutlet weak var WDView: WindDirectionView!
+    @IBOutlet weak var FeelsLikeView: WeatherDetailGeneralView!
+    @IBOutlet weak var HumidityView: WeatherDetailGeneralView!
+    
     @IBOutlet weak var addButton: UIButton!
     @IBOutlet weak var cancelButton: UIButton!
     @IBOutlet weak var locationButton: UIButton!
@@ -137,15 +142,37 @@ class WeatherViewController: UIViewController {
                 self.currentTemparatureLabel.text = self.pinCityDetail.currentTemperature
                 self.currentClimateLabel.text = self.pinCityDetail.currentClimate
                 self.temparatureIntervalLabel.text = "H: "+self.pinCityDetail.currentMaxTemperature + "° L: " + self.pinCityDetail.currentMinTemperature + "°"
+                self.HumidityView.textLabel.text = self.pinCityDetail.getCurrentSpecificData(of: "RH", date: Date()).0 + "%"
+                self.FeelsLikeView.textLabel.text = self.pinCityDetail.getCurrentSpecificData(of: "AT", date: Date()).0 + "°"
+                self.FeelsLikeView.detailLabel.text = self.pinCityDetail.getCurrentSpecificData(of: "CI", date: Date()).1
+                self.HumidityView.detailLabel.text = "露點溫度為\(self.pinCityDetail.getCurrentSpecificData(of: "Td", date: Date()).0)°"
+                let (wd, _) = self.pinCityDetail.getCurrentSpecificData(of: "WD", date: Date())
+                let (ws, _) = self.pinCityDetail.getCurrentSpecificData(of: "WS", date: Date())
+                self.WDView.windDirectionLabel.text = "\(ws)\nm/s"
+                
+                // 定義一個字符集，用於匹配數字
+                let digitCharacterSet = CharacterSet.decimalDigits
+                // 創建一個 Scanner 對象
+                let scanner = Scanner(string: wd)
+                // 設置 Scanner 的字符集
+                scanner.charactersToBeSkipped = nil
+                // 提取數字部分
+                var number: Int = 0
+//                scanner.scanUpToCharacters(from: digitCharacterSet)
+                scanner.scanInt(&number)
+                
+                self.WDView.windDrawView.setDirection(number)
+
                 self.hourForecastCollectionView.reloadData()
             }
         }
         pinCityDetail.getSevenDaysCityWeatherData {
             DispatchQueue.main.async {
+                (self.UVIView.numberLabel.text, self.UVIView.subLabel.text) = self.pinCityDetail.getCurrentSpecificData(of: "UVI", date: Date())
+                self.UVIView.detailLabel.text = ""
                 self.dayForecastTableView.reloadData()
             }
         }
-        
     }
     
     func updateInterface() {
@@ -167,6 +194,7 @@ class WeatherViewController: UIViewController {
             self.temparatureIntervalLabel.text = "H: "+self.pinCityDetail.currentMaxTemperature + "° L: " + self.pinCityDetail.currentMinTemperature + "°"
             self.hourForecastCollectionView.reloadData()
             self.dayForecastTableView.reloadData()
+            
         }
     }
     
@@ -191,6 +219,16 @@ class WeatherViewController: UIViewController {
         dayForecastTableView.backgroundColor = UIColor(red: 0, green: 0, blue: 0, alpha: 0.1)
         hourForecastCollectionView.layer.cornerRadius = 13
         dayForecastTableView.layer.cornerRadius = 13
+        
+        UVIView.layer.cornerRadius = 13
+        WDView.layer.cornerRadius = 13
+        FeelsLikeView.layer.cornerRadius = 13
+        HumidityView.layer.cornerRadius = 13
+        
+        UVIView.textColor = textColor
+        WDView.textColor = textColor
+        FeelsLikeView.textColor = textColor
+        HumidityView.textColor = textColor
         
     }
     
