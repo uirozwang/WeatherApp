@@ -22,6 +22,11 @@ class PageViewController: UIPageViewController {
         getWeatherData()
     }
     
+    // 將 Status Bar 修改為 light
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        return UIStatusBarStyle.lightContent
+    }
+    
     // MARK: - Save & Load
     
     func loadPinCitiesData() {

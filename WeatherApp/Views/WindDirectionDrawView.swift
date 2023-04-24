@@ -79,7 +79,7 @@ class WindDirectionDrawView: UIView {
         maskLayer.path = UIBezierPath(arcCenter: CGPoint(x: bounds.midX, y: bounds.midY), radius: (bounds.width/2+20)/2, startAngle: 0, endAngle: CGFloat.pi*2, clockwise: true).cgPath
         maskLayer.fillColor = UIColor.clear.cgColor;
         maskLayer.strokeColor = UIColor.white.cgColor
-        maskLayer.lineWidth = 25
+        maskLayer.lineWidth = 35
         maskLayer.strokeStart = 0
         maskLayer.strokeEnd = 1
 //        let maskRect = CGRect(x: bounds.midX-25, y: bounds.midY-25, width: 50, height: 50)
